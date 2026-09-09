@@ -1,0 +1,79 @@
+/* ASK's tokens — the same vocabulary ROOT uses, trimmed to what one app needs.
+   Deliberately a copy rather than a shared file: the two are separate sites and
+   a shared stylesheet across repos is a dependency neither of them wants. The
+   names are the contract, so anything written against ROOT's tokens reads the
+   same here. Four themes instead of fifteen — this app is a form, not a place
+   you live. */
+
+:root{
+  /* Palette — VOID, ROOT's default */
+  --bg:#0e0e0e;
+  --s1:#161616;
+  --s2:#1e1e1e;
+  --s3:#252525;
+  --bd:#272727;
+  --bd-2:#333333;
+  --tx:#dedede;
+  --tx-2:#9a9a9a;
+  --mu:#4a4a4a;
+
+  --y:#A78BFA;
+  --yd:color-mix(in srgb, var(--y) 13%, transparent);
+  --yb:color-mix(in srgb, var(--y) 26%, transparent);
+  --y-fade:color-mix(in srgb, var(--y) 6%, transparent);
+  --on-y:#0e0e0e;
+
+  --gr:#5cdb7d; --re:#e06060; --or:#e0a060;
+
+  /* The four request types wear their Todoist colours, so a chip here and a
+     label there are recognisably the same thing. */
+  --t-fix:#e06060;
+  --t-change:#e8c34a;
+  --t-feature:#5cdb7d;
+  --t-idea:#4aa8b8;
+
+  --mono:'JetBrains Mono','Courier New',monospace;
+  --head:'Syne',sans-serif;
+
+  --r-base:4px;
+  --r1:calc(var(--r-base) * .75);
+  --r2:var(--r-base);
+  --r3:calc(var(--r-base) * 1.75);
+  --r-sheet:calc(var(--r-base) * 2.5);
+  --r-pill:999px;
+  --bw:1px;
+
+  --dens:1;
+  --shadow-chrome:0 10px 34px -12px rgba(0,0,0,.65);
+  --caps:uppercase;
+
+  --sat:calc(env(safe-area-inset-top) + 6px);
+  --nav-fh:58px;
+  --frame-w:460px;
+  --frame-h:900px;
+  --readable:720px;
+}
+
+[data-theme="ember"]{
+  --bg:#100d0b; --s1:#191512; --s2:#221d18; --s3:#2a241d; --bd:#2e2721; --bd-2:#3d342b;
+  --tx:#e6ded3; --tx-2:#a2988a; --mu:#4f463c;
+  --y:#e8a33d; --on-y:#100d0b}
+
+[data-theme="paper"]{
+  --bg:#f2ede3; --s1:#fffdf7; --s2:#e9e2d4; --s3:#ded5c3; --bd:#ded4c2; --bd-2:#c8bba3;
+  --tx:#22201c; --tx-2:#5f5a51; --mu:#a89e8c;
+  --y:#6b4df0; --on-y:#fffdf7;
+  --gr:#2f8f4e; --re:#c04040; --or:#b57420;
+  --t-fix:#c04040; --t-change:#a8811a; --t-feature:#2f8f4e; --t-idea:#2b7f92}
+
+[data-theme="noir"]{
+  --bg:#fafafa; --s1:#ffffff; --s2:#f0f0f0; --s3:#e6e6e6; --bd:#e0e0e0; --bd-2:#bdbdbd;
+  --tx:#111111; --tx-2:#565656; --mu:#9e9e9e;
+  --y:#111111; --on-y:#ffffff;
+  --gr:#2f8f4e; --re:#c04040; --or:#b57420;
+  --t-fix:#c04040; --t-change:#8a6d15; --t-feature:#2f8f4e; --t-idea:#2b7f92}
+
+[data-theme="paper"], [data-theme="noir"]{ color-scheme:light }
+[data-theme="void"], [data-theme="ember"]{ color-scheme:dark }
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}

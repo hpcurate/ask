@@ -1,0 +1,11 @@
+{
+  "name": "ASK",
+  "short_name": "ASK",
+  "description": "Write down what needs fixing, changing or building, then file it in Todoist for Claude.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e0e0e",
+  "theme_color": "#0e0e0e",
+  "icons": []
+}

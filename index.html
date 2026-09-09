@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="void">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ASK</title>
+<meta name="theme-color" content="#0e0e0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/ask.css">
+<script>
+  /* before the first paint, so a chosen theme never flashes the default */
+  try { var t = JSON.parse(localStorage.getItem('ask_prefs_v1') || '{}').theme;
+        if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+</head>
+<body>
+
+<div id="band">
+  <div class="b-label"><span id="b-where">inbox › claude requests</span><button class="b-set" id="b-set">settings</button></div>
+  <div class="b-row">
+    <div class="b-logo">ASK<em>.</em></div>
+    <div class="b-count zero" id="b-count">0</div>
+  </div>
+</div>
+
+<div id="body">
+
+  <!-- WRITE ─────────────────────────────────────────────────────────── -->
+  <section class="scr on" id="s-write">
+    <div class="sec"><span>The request</span></div>
+    <div class="note">
+      Written down <b>exactly as you type it</b> — the title is copied into the
+      update log word for word, quirks included. Say what you want, not how to
+      build it.
+    </div>
+
+    <div class="f">
+      <label class="lbl" for="a-title">Title <em>the request, verbatim</em></label>
+      <textarea id="a-title" placeholder="the pill bar should stay put while a sheet is open"
+                spellcheck="false"></textarea>
+    </div>
+
+    <div class="f">
+      <label class="lbl">Type</label>
+      <div class="chips" id="a-type">
+        <button class="chip" data-type="fix"     data-val="fix">fix</button>
+        <button class="chip" data-type="change"  data-val="change">change</button>
+        <button class="chip" data-type="feature" data-val="feature">feature</button>
+        <button class="chip" data-type="idea"    data-val="idea">idea</button>
+      </div>
+      <div class="note" id="a-type-note" style="margin-top:9px"></div>
+    </div>
+
+    <div class="f">
+      <label class="lbl">Project</label>
+      <div class="chips" id="a-project"></div>
+      <input type="text" id="a-project-other" placeholder="project name"
+             spellcheck="false" style="margin-top:9px;display:none">
+    </div>
+
+    <div class="f">
+      <label class="lbl">Tab <em>the area inside the app</em></label>
+      <div class="chips" id="a-tab"></div>
+    </div>
+
+    <div class="f">
+      <label class="lbl">Priority</label>
+      <div class="chips" id="a-prio">
+        <button class="chip" data-val="1">p1</button>
+        <button class="chip" data-val="2">p2</button>
+        <button class="chip" data-val="3">p3</button>
+        <button class="chip on" data-val="4">p4</button>
+      </div>
+    </div>
+
+    <div class="f">
+      <label class="lbl" for="a-notes">Notes <em>optional — posted as a comment</em></label>
+      <textarea id="a-notes" placeholder="anything the title alone doesn't say: where you saw it, what you expected, what you already tried"
+                spellcheck="false"></textarea>
+    </div>
+
+    <button class="btn" id="a-add">add to the queue</button>
+    <button class="btn btn-2" id="a-clear">clear the form</button>
+  </section>
+
+  <!-- QUEUE ─────────────────────────────────────────────────────────── -->
+  <section class="scr" id="s-queue">
+    <div class="sec"><span>Waiting to be sent</span><button class="mini danger" id="q-clear">clear all</button></div>
+    <div class="note">
+      Nothing here has left this device. Sending files each one in
+      <code>inbox › claude requests</code> with <code>@claude</code> and its type
+      label, the project and tab in the description, and any notes as a comment.
+    </div>
+    <div id="q-list"></div>
+    <button class="btn" id="q-send">send to todoist</button>
+  </section>
+
+  <!-- SENT ──────────────────────────────────────────────────────────── -->
+  <section class="scr" id="s-sent">
+    <div class="sec"><span>Already filed</span><button class="mini danger" id="h-clear">clear history</button></div>
+    <div class="note">
+      What this device has sent, newest first. The record is local — completing
+      a task in Todoist does not remove it from here.
+    </div>
+    <div id="h-list"></div>
+  </section>
+
+</div>
+
+<nav id="nav">
+  <button class="tab on" data-scr="write">write</button>
+  <button class="tab" data-scr="queue">queue<span class="n" id="t-n" hidden>0</span></button>
+  <button class="tab" data-scr="sent">sent</button>
+</nav>
+
+<div id="toast"></div>
+
+<!-- SETTINGS ────────────────────────────────────────────────────────── -->
+<div class="sheet-back" id="set-back"></div>
+<div class="sheet" id="set">
+  <div class="sheet-head">
+    <span class="sheet-ttl">settings</span>
+    <button class="sheet-close" id="set-close">close</button>
+  </div>
+
+  <div class="sec"><span>Todoist</span></div>
+  <div class="note">
+    The same key ROOT uses. It is kept on this device only, and it is the one
+    thing here that never travels in an export.
+  </div>
+  <div class="f">
+    <label class="lbl" for="set-token">API key</label>
+    <input type="password" id="set-token" placeholder="paste your Todoist API key"
+           autocomplete="off" autocapitalize="off" spellcheck="false">
+  </div>
+  <div class="status" id="set-status">no key yet</div>
+  <div class="chips">
+    <button class="chip" id="set-save">save</button>
+    <button class="chip" id="set-test">test</button>
+  </div>
+
+  <div class="sec"><span>Defaults</span></div>
+  <div class="note">What a new request starts on, so the common case is no taps.</div>
+  <div class="f">
+    <label class="lbl">Project</label>
+    <div class="chips" id="set-def-project"></div>
+  </div>
+  <div class="f">
+    <label class="lbl">Type</label>
+    <div class="chips" id="set-def-type">
+      <button class="chip" data-type="fix" data-val="fix">fix</button>
+      <button class="chip" data-type="change" data-val="change">change</button>
+      <button class="chip" data-type="feature" data-val="feature">feature</button>
+      <button class="chip" data-type="idea" data-val="idea">idea</button>
+      <button class="chip" data-val="">none</button>
+    </div>
+  </div>
+
+  <div class="sec"><span>Lists</span></div>
+  <div class="note">
+    Comma-separated. Projects are repos; tabs are the areas inside them —
+    <code>other</code> covers anything shell-wide.
+  </div>
+  <div class="f">
+    <label class="lbl" for="set-projects">Projects</label>
+    <input type="text" id="set-projects" spellcheck="false">
+  </div>
+  <div class="f">
+    <label class="lbl" for="set-tabs">Tabs</label>
+    <input type="text" id="set-tabs" spellcheck="false">
+  </div>
+
+  <div class="sec"><span>Look</span></div>
+  <div class="f">
+    <label class="lbl">Theme</label>
+    <div class="chips" id="set-theme">
+      <button class="chip" data-val="void">void</button>
+      <button class="chip" data-val="ember">ember</button>
+      <button class="chip" data-val="paper">paper</button>
+      <button class="chip" data-val="noir">noir</button>
+    </div>
+  </div>
+
+  <div class="sec"><span>Data</span></div>
+  <div class="row">
+    <span class="row-l">Everything on this device<small id="set-size">—</small></span>
+    <button class="mini" id="set-export">export .md</button>
+  </div>
+  <div class="row">
+    <span class="row-l">Restore from a file<small>replaces the queue, the history and these settings</small></span>
+    <button class="mini" id="set-import">import .md</button>
+  </div>
+  <input type="file" id="set-file" accept="text/markdown,.md,.txt" style="display:none">
+</div>
+
+<!-- ASK ─────────────────────────────────────────────────────────────── -->
+<div class="sheet-back" id="ask-back"></div>
+<div class="sheet" id="ask">
+  <div class="sheet-head"><span class="sheet-ttl" id="ask-ttl">are you sure?</span></div>
+  <div class="note" id="ask-body" style="margin-bottom:16px"></div>
+  <button class="btn" id="ask-yes">yes</button>
+  <button class="btn btn-2" id="ask-no">cancel</button>
+</div>
+
+<script src="js/store.js"></script>
+<script src="js/todoist.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

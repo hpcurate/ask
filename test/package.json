@@ -1,0 +1,8 @@
+{
+  "name": "ask-test",
+  "private": true,
+  "description": "jsdom smoke for ASK — not part of the site. cd test && npm install && node smoke.mjs",
+  "type": "module",
+  "scripts": { "test": "node smoke.mjs" },
+  "devDependencies": { "jsdom": "^24.1.0" }
+}
