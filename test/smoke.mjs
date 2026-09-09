@@ -272,6 +272,85 @@ check('the rebind rows are drawn from the same list the keys come from',
   (() => { w.ASK.renderKeys(); return d.querySelectorAll('#set-keys .key-cap').length === 5; })(),
   String(d.querySelectorAll('#set-keys .key-cap').length));
 
+/* Quick mode — one field at a time, each answer advancing on its own.
+   The point of the checks is that it is not a second definition of a request:
+   it fills the same draft and files through the same Store.add. */
+{
+  unfocus();
+  w.Store.set('quick', true);
+  w.ASK.paintQuick();
+  check('the switch puts the quick button on the write screen', !$('#a-quick').hidden);
+
+  const before = w.Store.queue().length;
+  w.ASK.quickStart();
+  check('it opens on the first question, with the field ready', w.ASK.quickStep() === 0 &&
+    !!$('#q-in') && /what is it/i.test($('#q-step').textContent),
+    $('#q-step').textContent.slice(0, 40));
+
+  $('#q-in').value = 'asked one thing at a time';
+  key('Enter', $('#q-in'));
+  check('answering the text step moves straight on to the next question',
+    w.ASK.quickStep() === 1 && /what kind/i.test($('#q-step').textContent),
+    String(w.ASK.quickStep()));
+  check('… and a chips step is numbered, so one key answers it',
+    d.querySelectorAll('#q-step .q-opt').length === 5 &&
+    $('#q-step .q-opt .q-n').textContent === '1',
+    String(d.querySelectorAll('#q-step .q-opt').length));
+
+  key('1');                                    // fix
+  check('a digit picks and advances in one press', w.ASK.quickStep() === 2,
+    String(w.ASK.quickStep()));
+
+  /* the cursor keys and the act key are the other way through, and they are
+     the same bindings the rest of the app uses */
+  key('ArrowDown');
+  check('the cursor keys move the highlight without answering',
+    w.ASK.quickStep() === 2 && d.querySelectorAll('#q-step .q-opt.on').length === 1);
+  key(' ');
+  check('… and the act key answers it', w.ASK.quickStep() === 3, String(w.ASK.quickStep()));
+
+  key('Escape');
+  check('Escape goes back a step rather than throwing the answers away',
+    w.ASK.quickStep() === 2, String(w.ASK.quickStep()));
+  key('1');                                    // project, first option
+  key('1');                                    // tab
+  key('1');                                    // priority
+  check('the last question is the optional note', w.ASK.quickStep() === 5 &&
+    /anything else/i.test($('#q-step').textContent), String(w.ASK.quickStep()));
+
+  $('#q-in').value = '';
+  key('Enter', $('#q-in'));
+  check('answering the last one files the request and closes the flow',
+    w.Store.queue().length === before + 1 && w.ASK.quickStep() === -1,
+    before + ' → ' + w.Store.queue().length);
+  const made = w.Store.queue()[w.Store.queue().length - 1];
+  check('… and what it filed is a normal request, from the same form',
+    made.title === 'asked one thing at a time' && made.type === 'fix' &&
+    !!made.project && !!made.tab && !!made.prio,
+    JSON.stringify(made));
+
+  /* "other" has nowhere to type a name in the flow, so it hands over rather
+     than inventing a step */
+  w.ASK.quickStart();
+  $('#q-in').value = 'needs a project name';
+  key('Enter', $('#q-in'));
+  key('1');
+  const projOpts = [...d.querySelectorAll('#q-step .q-opt')].map(b => b.dataset.q);
+  const otherAt = projOpts.indexOf('other');
+  check('the project step offers every project the settings list holds',
+    otherAt >= 0, projOpts.join(','));
+  key(String(otherAt + 1));
+  check('picking "other" hands back to the long form instead of guessing',
+    w.ASK.quickStep() === -1 && $('#s-write').classList.contains('on') &&
+    $('#a-title').value === 'needs a project name',
+    $('#a-title').value);
+
+  w.Store.set('quick', false);
+  w.ASK.paintQuick();
+  check('turning it off takes the button away again', $('#a-quick').hidden);
+  unfocus();
+}
+
 check('still no errors after all of that', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 console.log(out.join('\n'));

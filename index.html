@@ -84,6 +84,7 @@
     </div>
 
     <button class="btn" id="a-add">add to the queue</button>
+    <button class="btn btn-2" id="a-quick" hidden>quick add →</button>
     <button class="btn btn-2" id="a-clear">clear the form</button>
   </section>
 
@@ -174,6 +175,17 @@
     <input type="text" id="set-tabs" spellcheck="false">
   </div>
 
+  <div class="sec"><span>Quick mode</span></div>
+  <div class="note">
+    One field at a time instead of the whole form: the request, then its kind,
+    then where it goes — each asked on its own, each answered with a key, and
+    each moving on the moment it is answered.
+  </div>
+  <div class="row">
+    <span class="row-l">Ask one thing at a time<small>puts a <b>quick add</b> button on the write screen</small></span>
+    <button class="key-cap" id="set-quick">off</button>
+  </div>
+
   <div class="sec"><span>Keyboard</span></div>
   <div class="note">
     The cursor walks the screen you are on and the ring shows where it is.
@@ -204,6 +216,16 @@
     <button class="mini" id="set-import">import .md</button>
   </div>
   <input type="file" id="set-file" accept="text/markdown,.md,.txt" style="display:none">
+</div>
+
+<!-- QUICK ───────────────────────────────────────────────────────────────
+     One field at a time, asked in order. Not a second form: it writes the same
+     draft object the long form does and hands it to the same Store.add. -->
+<div class="q-back" id="q-back"></div>
+<div class="q-wrap" id="q-wrap" role="dialog" aria-modal="true" aria-label="quick add">
+  <div class="q-dots" id="q-dots"></div>
+  <div class="q-step" id="q-step"></div>
+  <div class="q-hint" id="q-hint"></div>
 </div>
 
 <!-- ASK ─────────────────────────────────────────────────────────────── -->

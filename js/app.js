@@ -288,6 +288,7 @@
     $('#set-size').textContent = `${Store.queue().length} queued · ${Store.sent().length} sent · ${Math.max(1, Math.round(Store.size() / 1024))} KB`;
     paintStatus(Store.token() ? 'key saved — test it to be sure' : 'no key yet', '');
     renderKeys();
+    paintQuick();
     $('#set-back').classList.add('on');
     $('#set').classList.add('on');
   }
@@ -373,6 +374,151 @@
     };
     reader.readAsText(file);
   };
+
+  /* ── quick mode ───────────────────────────────────────────────────────
+     One field at a time, asked in order, each one moving on the moment it is
+     answered. It is **not a second form**: every step writes into the same
+     `draft` the long form uses and the last one hands it to the same
+     `readForm()` and `Store.add()`, so there is one definition of what a
+     request is and no chance of the two drifting.
+
+     What makes it fast is that answering *is* advancing. A chip step needs one
+     key — a digit, or the cursor keys and the act key — and there is no
+     confirm button to reach for afterwards. A text step takes Enter. Escape
+     goes back a step rather than throwing the whole thing away, because losing
+     four answers to one mistyped key is how a fast path stops being used. */
+  const QSTEPS = [
+    { k:'title', kind:'text', ask:'What is it?',
+      hint:'exactly as you would say it — this is copied into the log word for word' },
+    { k:'type', kind:'chips', ask:'What kind?',
+      opts: () => [['fix','fix'],['change','change'],['feature','feature'],['idea','idea'],['','no type']] },
+    { k:'project', kind:'chips', ask:'Which project?',
+      opts: () => Store.get('projects').map(p => [p, p]) },
+    { k:'tab', kind:'chips', ask:'Which area?',
+      opts: () => Store.get('tabs').map(t => [t, t]) },
+    { k:'prio', kind:'chips', ask:'How urgent?',
+      opts: () => [[1,'p1 · now'],[2,'p2'],[3,'p3'],[4,'p4 · whenever']] },
+    { k:'notes', kind:'text', ask:'Anything else?',
+      hint:'optional — posted as a comment. Enter files it.' },
+  ];
+  let qAt = -1;          // which step, or -1 when the flow is closed
+  let qPick = 0;         // the highlighted chip on a chips step
+
+  const qOpen = () => qAt >= 0;
+
+  function quickStart() {
+    resetForm();
+    qAt = 0; qPick = 0;
+    $('#q-back').classList.add('on');
+    $('#q-wrap').classList.add('on');
+    drawQuick();
+  }
+  function quickClose() {
+    qAt = -1;
+    $('#q-back').classList.remove('on');
+    $('#q-wrap').classList.remove('on');
+  }
+
+  function drawQuick() {
+    const st = QSTEPS[qAt];
+    if (!st) return;
+    $('#q-dots').innerHTML = QSTEPS.map((_, i) =>
+      `<i class="${i < qAt ? 'done' : i === qAt ? 'on' : ''}"></i>`).join('');
+    $('#q-hint').textContent = st.hint || 'a key answers it — it moves on by itself';
+
+    if (st.kind === 'text') {
+      const val = st.k === 'title' ? $('#a-title').value : $('#a-notes').value;
+      $('#q-step').innerHTML = `<div class="q-ask">${esc(st.ask)}</div>
+        <textarea class="q-field" id="q-in" spellcheck="false"
+                  placeholder="${esc(st.k === 'title' ? 'the pill bar should stay put while a sheet is open' : '')}">${esc(val)}</textarea>`;
+      const box = $('#q-in');
+      /* Focused and with the caret at the end, so the field is ready to type
+         into the instant the step lands — "text automatically in field". */
+      setTimeout(() => { try { box.focus(); box.setSelectionRange(box.value.length, box.value.length); } catch {} }, 20);
+      return;
+    }
+
+    const opts = st.opts();
+    $('#q-step').innerHTML = `<div class="q-ask">${esc(st.ask)}</div>
+      <div class="q-opts">${opts.map(([v, l], i) => `
+        <button class="q-opt${i === qPick ? ' on' : ''}" data-q="${esc(v)}" data-i="${i}">
+          <span class="q-n">${i < 9 ? i + 1 : ''}</span><span class="q-l">${esc(l)}</span>
+        </button>`).join('')}</div>`;
+    $$('#q-step .q-opt').forEach(b => b.onclick = () => quickAnswer(b.dataset.q));
+  }
+
+  /* One answer, then straight on. The last step files it. */
+  function quickAnswer(v) {
+    const st = QSTEPS[qAt];
+    if (!st) return;
+    if (st.kind === 'text') {
+      if (st.k === 'title') $('#a-title').value = String(v);
+      else $('#a-notes').value = String(v);
+    } else if (st.k === 'prio') draft.prio = +v;
+    else draft[st.k] = String(v);
+
+    if (st.k === 'project' && v === 'other') {
+      /* "other" needs a name, and there is nowhere in the flow to type one, so
+         the long form takes over rather than the flow inventing a seventh step
+         nobody asked for. */
+      quickClose();
+      paintForm();
+      $('#a-project-other').focus();
+      toast('name the project, then add it');
+      return;
+    }
+
+    if (qAt >= QSTEPS.length - 1) { quickFile(); return; }
+    qAt++; qPick = 0;
+    drawQuick();
+  }
+
+  function quickFile() {
+    const req = readForm();
+    if (!req) { quickClose(); return; }        // readForm says what is missing
+    Store.add(req);
+    quickClose();
+    resetForm();
+    render();
+    toast(req.type ? 'queued' : 'queued — no type, so it reads as a change');
+  }
+
+  function quickBack() {
+    if (qAt <= 0) { quickClose(); return; }
+    qAt--; qPick = 0;
+    drawQuick();
+  }
+
+  function quickKey(e) {
+    const st = QSTEPS[qAt];
+    if (!st) return;
+    if (e.key === 'Escape') { e.preventDefault(); quickBack(); return; }
+
+    if (st.kind === 'text') {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); quickAnswer($('#q-in').value.trim()); }
+      return;                                   // everything else is typing
+    }
+
+    const opts = st.opts();
+    const map = Store.get('keys') || {};
+    const k = e.key.toLowerCase();
+    if (/^[1-9]$/.test(e.key) && +e.key <= opts.length) {
+      e.preventDefault(); quickAnswer(opts[+e.key - 1][0]); return;
+    }
+    if (e.key === 'ArrowDown' || k === map.down) { e.preventDefault(); qPick = (qPick + 1) % opts.length; drawQuick(); return; }
+    if (e.key === 'ArrowUp'   || k === map.up)   { e.preventDefault(); qPick = (qPick - 1 + opts.length) % opts.length; drawQuick(); return; }
+    if (e.key === 'Enter' || k === map.act)      { e.preventDefault(); quickAnswer(opts[qPick][0]); return; }
+  }
+
+  $('#q-back').onclick = quickClose;
+  $('#a-quick').onclick = quickStart;
+
+  function paintQuick() {
+    $('#a-quick').hidden = !Store.get('quick');
+    const b = $('#set-quick');
+    if (b) { b.textContent = Store.get('quick') ? 'on' : 'off'; b.classList.toggle('on', !!Store.get('quick')); }
+  }
+  $('#set-quick').onclick = () => { Store.set('quick', !Store.get('quick')); paintQuick(); toast(Store.get('quick') ? 'quick mode on' : 'quick mode off'); };
 
   /* ── the keyboard ────────────────────────────────────────────────────
      A roving cursor over the controls of the screen you are on. Two decisions
@@ -475,6 +621,9 @@
   document.addEventListener('keydown', e => {
     if (capturing) return;                       // a rebind is reading this key
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    /* Quick mode is modal: it answers every key itself, so the cursor never
+       walks the screen underneath it. */
+    if (qOpen()) { quickKey(e); return; }
 
     const el = document.activeElement;
     if (isField(el)) {
@@ -577,10 +726,12 @@
   $('#b-where').style.cursor = 'pointer';
 
   /* the smoke drives these; nothing in the page calls them from outside */
-  window.ASK = { go, moveSel, clearSel, actOnSel, selected: () => sel, renderKeys };
+  window.ASK = { go, moveSel, clearSel, actOnSel, selected: () => sel, renderKeys,
+                 quickStart, quickClose, quickKey, quickStep: () => qAt, paintQuick };
 
   document.documentElement.setAttribute('data-theme', Store.get('theme') || 'void');
   renderLists();
   resetForm();
+  paintQuick();
   render();
 })();

@@ -173,9 +173,35 @@ The five bindings are settings (`a`, `u`, `.`, `e`, space by default). The
 arrows, Enter, Escape and Tab are built in and are not rebindable: they read the
 same on every keyboard, so there is nothing to choose.
 
+## 8. Quick mode
+
+Off by default. With it on, a *quick add* button asks for one field at a time —
+request, kind, project, area, priority, note — and **answering is advancing**: a
+digit picks a numbered option, or the cursor keys and the act key do; a text step
+takes Enter and lands with its field already focused. There is no confirm button
+anywhere in the flow. Escape steps *back* one question rather than out, because
+losing four answers to one mistyped key is how a fast path stops getting used.
+
+It is not a second form. Every step writes the same `draft` the long form uses
+and files through the same `readForm()` / `Store.add()`, so there is one
+definition of a request and the two cannot drift.
+
+The one hand-back: picking **other** as the project needs a name typed and the
+flow has nowhere to type one, so it closes, carries the title over and puts the
+cursor in the long form's project field.
+
 ---
 
 ## Changelog
+
+### 1.2.0 — 2026-09-09 — one field at a time
+
+- Quick mode: one question per screen, each answered with a key and advancing
+  on its own. See §8.
+- Escape goes back a step, not out.
+- The same draft and the same `Store.add` as the long form — one definition of
+  a request, not two.
+- 63 checks (14 added). The motion and the caret landing need a browser.
 
 ### 1.1.0 — 2026-09-09 — the form works without a mouse
 

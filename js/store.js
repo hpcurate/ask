@@ -26,6 +26,10 @@ window.Store = (function () {
        Enter, Escape and Tab are built in and are not in here — those read the
        same everywhere, so there is nothing to choose. */
     keys: { left:'a', right:'u', up:'.', down:'e', act:' ' },
+    /* Ask one field at a time instead of showing the whole form. Off by
+       default: the long form is the one that shows you everything at once, and
+       that is the right first impression. */
+    quick: false,
   };
 
   const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };

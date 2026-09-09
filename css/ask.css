@@ -192,6 +192,55 @@ textarea#a-title{min-height:66px;font-size:14px;line-height:1.45}
 .row-l{font:400 11.5px/1.4 var(--mono);color:var(--tx)}
 .row-l small{display:block;font:400 9.5px/1.5 var(--mono);color:var(--mu);margin-top:3px}
 
+/* Quick mode
+   A full-height sheet rather than a small dialog, because one question at a
+   time deserves the whole screen — the point is that nothing else is competing
+   for attention. The step slides up as it lands, which is the only motion in
+   here: anything more and answering six questions in six seconds becomes six
+   animations you wait through. */
+.q-back{position:fixed;inset:0;z-index:130;background:var(--bg);
+  opacity:0;pointer-events:none;transition:opacity .16s ease}
+.q-back.on{opacity:.97;pointer-events:auto}
+.q-wrap{position:fixed;inset:0;z-index:135;
+  display:none;flex-direction:column;justify-content:center;
+  padding:calc(28px * var(--dens)) calc(24px * var(--dens));
+  pointer-events:none}
+.q-wrap.on{display:flex;pointer-events:auto}
+
+.q-dots{display:flex;gap:6px;justify-content:center;margin-bottom:calc(30px * var(--dens))}
+.q-dots i{width:22px;height:3px;border-radius:2px;background:var(--s3);transition:background .2s ease}
+.q-dots i.done{background:color-mix(in srgb, var(--y) 45%, transparent)}
+.q-dots i.on{background:var(--y)}
+
+.q-step{animation:q-in .18s var(--ease-out, cubic-bezier(.34,1.4,.5,1)) both}
+@keyframes q-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.q-ask{font:800 clamp(24px, 7.5vw, 34px)/1.15 var(--head);letter-spacing:-.02em;
+  color:var(--tx);margin-bottom:calc(22px * var(--dens))}
+.q-field{width:100%;min-height:120px;background:var(--s1);color:var(--tx);
+  border:var(--bw) solid var(--bd);border-radius:var(--r2);
+  padding:calc(14px * var(--dens));font:400 15px/1.5 var(--mono);
+  outline:none;resize:none}
+.q-field:focus{border-color:var(--y)}
+
+.q-opts{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto;
+  scrollbar-width:none}
+.q-opts::-webkit-scrollbar{display:none}
+.q-opt{display:flex;align-items:center;gap:calc(13px * var(--dens));width:100%;
+  background:var(--s1);border:var(--bw) solid var(--bd);border-radius:var(--r2);
+  padding:calc(13px * var(--dens)) calc(15px * var(--dens));cursor:pointer;
+  color:var(--tx-2);font:400 13px/1 var(--mono);letter-spacing:.03em;text-align:left;
+  transition:border-color .12s ease,color .12s ease,background .12s ease}
+.q-opt .q-n{flex:0 0 auto;width:19px;height:19px;border-radius:var(--r1);
+  background:var(--s3);color:var(--mu);font:400 10px/19px var(--mono);text-align:center}
+.q-opt.on{border-color:var(--y);color:var(--tx);background:var(--y-fade)}
+.q-opt.on .q-n{background:var(--y);color:var(--on-y)}
+.q-opt:hover{border-color:var(--bd-2)}
+
+.q-hint{margin-top:calc(20px * var(--dens));text-align:center;
+  font:400 10px/1.6 var(--mono);letter-spacing:.04em;color:var(--mu)}
+
+@media (prefers-reduced-motion:reduce){ .q-step{animation:none} }
+
 :focus{outline:none}
 :focus-visible{outline:2px solid var(--y);outline-offset:2px;border-radius:var(--r1)}
 
