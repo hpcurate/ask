@@ -313,9 +313,8 @@
     Store.saveToken($('#set-token').value.trim());
     paintStatus('checking…', '');
     try {
-      const u = await Todoist.me();
-      await Todoist.section();
-      paintStatus(`connected as ${u && (u.full_name || u.email) || 'you'} · "${Todoist.SECTION}" found`, 'ok');
+      const r = await Todoist.check();
+      paintStatus(`connected · ${r.projects} projects · "${Todoist.SECTION}" found`, 'ok');
     } catch (err) { paintStatus(String(err.message || err), 'bad'); }
   };
 

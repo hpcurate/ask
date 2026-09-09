@@ -131,6 +131,77 @@ check('a file that is not an ASK file is refused',
 check('priority is inverted for the API, so p1 is urgent',
   (5 - 1) === 4 && (5 - 4) === 1);
 
+/* What actually goes over the wire.
+   The first version of this app sent the literal string "inbox" as project_id —
+   a convenience the MCP tooling accepts and the real API answers with a bare
+   400. Nothing here could catch that, because nothing here looked at the
+   request. Now it does. */
+{
+  const sentReqs = [];
+  const PROJECTS = { results: [
+    { id: 'P_INBOX', name: 'Inbox', inbox_project: true },
+    { id: 'P_CORE', name: '04 | core' }] };
+  const SECTIONS = { results: [
+    { id: 'S_BLOCKS', name: 'blocks' },
+    { id: 'S_CLAUDE', name: 'claude requests' }] };
+
+  w.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    const body = opts.body ? JSON.parse(opts.body) : null;
+    sentReqs.push({ url: u, method: opts.method || 'GET', body,
+                    auth: (opts.headers || {})['Authorization'] });
+    const reply = o => ({ ok: true, status: 200, text: async () => JSON.stringify(o) });
+    if (u.includes('/projects')) return reply(PROJECTS);
+    if (u.includes('/sections')) return reply(SECTIONS);
+    if (u.includes('/comments')) return reply({ id: 'C1' });
+    if (u.includes('/tasks')) return reply({ id: 'T1', url: 'https://todoist.com/showTask?id=T1' });
+    return reply({});
+  };
+
+  const task = await w.Todoist.send({ title: "don't tidy this", type: 'fix',
+    project: 'root', tab: 'settings', prio: 1, notes: 'a note' });
+
+  const post = sentReqs.find(r => r.method === 'POST' && r.url.includes('/tasks'));
+  check('the task POST carries a real project id, never the word "inbox"',
+    post && post.body.project_id === 'P_INBOX', post && String(post.body.project_id));
+  check('… and the section it resolved by name',
+    post && post.body.section_id === 'S_CLAUDE', post && String(post.body.section_id));
+  check('… the gate label and exactly one type label',
+    post && post.body.labels.join(',') === 'claude,fix', post && String(post.body.labels));
+  check('… the title verbatim, and the protocol\'s description line',
+    post && post.body.content === "don't tidy this" &&
+    post.body.description === 'project: root | tab: settings',
+    post && post.body.description);
+  check('… p1 sent as Todoist\'s 4', post && post.body.priority === 4, post && String(post.body.priority));
+  check('… and the key in the header', post && post.auth === 'Bearer sekrit');
+
+  const comment = sentReqs.find(r => r.url.includes('/comments'));
+  check('the notes follow as a comment on the task it made',
+    comment && comment.body.task_id === 'T1' && comment.body.content === 'a note',
+    comment && JSON.stringify(comment.body));
+  check('and the task comes back so the receipt can link to it', task && task.id === 'T1');
+
+  // an untyped request carries the gate alone — the protocol reads it as a change
+  sentReqs.length = 0;
+  await w.Todoist.send({ title: 'untyped', type: '', project: 'root', tab: 'other', prio: 4 });
+  const p2 = sentReqs.find(r => r.method === 'POST' && r.url.includes('/tasks'));
+  check('an untyped request is filed with the gate label alone',
+    p2 && p2.body.labels.join(',') === 'claude', p2 && String(p2.body.labels));
+  check('… and p4 is Todoist\'s 1', p2 && p2.body.priority === 1);
+
+  /* A 400 must say why. Hiding the body is what made the first one a guess. */
+  w.fetch = async () => ({ ok: false, status: 400,
+    text: async () => JSON.stringify({ error: 'Invalid argument value' }) });
+  w.Todoist.section();                       // ids are cached; force a fresh call path
+  let msg = '';
+  try { await w.Todoist.call('/tasks', { method: 'POST', body: '{}' }); }
+  catch (e) { msg = e.message; }
+  check('a 400 reports what Todoist said, not just the number',
+    /400/.test(msg) && /Invalid argument value/.test(msg), msg);
+  check('a plain-text error body survives too',
+    w.Todoist.errorText('something went wrong') === 'something went wrong');
+}
+
 check('still no errors after all of that', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 console.log(out.join('\n'));

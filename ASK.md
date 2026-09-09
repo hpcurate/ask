@@ -81,6 +81,10 @@ This is the part that is not ASK's to invent. It belongs to
 | comment | the notes, if there are any |
 | priority | p1–p4 in the UI, inverted for the API (p1 is Todoist's 4) |
 
+The inbox is resolved to its **real project id** before anything is written.
+The API will not accept the word `inbox` in place of one, and the 400 it answers
+with says so only in the response body — see the changelog.
+
 - **`claude` is the gate.** A task without it is never picked up.
 - **Exactly one type label**, because the type decides the version bump: `fix`
   and `change` are patches, `feature` makes the whole batch a minor.
@@ -146,6 +150,27 @@ label there are recognisably the same thing.
 ---
 
 ## Changelog
+
+### 1.0.1 — 2026-09-09 — the inbox has an id, and a 400 has to say why
+
+- **Sending failed with a bare `400`.** The task POST carried
+  `project_id: "inbox"` — the literal word. Some tooling accepts that as a
+  convenience; the API does not, and it answers with a 400 whose reason is in
+  the body. The inbox is now resolved to its real id off `/projects`
+  (`inbox_project` / `is_inbox_project` / `inboxProject`, all three spellings,
+  then the name as a last resort), and `/sections` is asked with that id too.
+- **The error path was hiding the answer.** `throw new Error('Todoist error ' + status)`
+  threw the one useful thing — the response body — away, which turned a
+  one-line fix into a guess. Errors now read `Todoist 400: <what it said>`,
+  whichever of the four shapes the body arrives in.
+- **The smoke now watches the wire.** It stubs `fetch` and asserts on what is
+  actually sent: a real project id, the resolved section, the gate plus exactly
+  one type label, the verbatim title, the `project: | tab:` line, the inverted
+  priority, and the note as a comment. Nothing before looked at the request,
+  which is why nothing caught this.
+- **The connection test stopped guessing at an endpoint.** It hit `/user`,
+  which was never verified; it now uses `/projects` — the call the app already
+  depends on — so a green test means sending will work.
 
 ### 1.0 — 2026-09-09 — the form that cannot get the labels wrong
 
