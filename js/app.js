@@ -60,6 +60,7 @@
   $('#ask-back').onclick = () => closeAsk(false);
 
   function go(name) {
+    if (name !== scr) clearSel();
     scr = name;
     $$('.scr').forEach(s => s.classList.toggle('on', s.id === 's-' + name));
     $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.scr === name));
@@ -286,6 +287,7 @@
     lightChips('#set-def-type', Store.get('type'));
     $('#set-size').textContent = `${Store.queue().length} queued · ${Store.sent().length} sent · ${Math.max(1, Math.round(Store.size() / 1024))} KB`;
     paintStatus(Store.token() ? 'key saved — test it to be sure' : 'no key yet', '');
+    renderKeys();
     $('#set-back').classList.add('on');
     $('#set').classList.add('on');
   }
@@ -372,6 +374,188 @@
     reader.readAsText(file);
   };
 
+  /* ── the keyboard ────────────────────────────────────────────────────
+     A roving cursor over the controls of the screen you are on. Two decisions
+     carry the whole thing:
+
+     The list is rebuilt on every move rather than cached. These screens
+     re-render on every change — a chip picked, a request queued, a card
+     removed — and a cached list hands back nodes that have left the document.
+     A miss simply restarts at the top, so the cursor heals rather than breaks.
+
+     A text field is **selected but not focused**. The bindings are letters; a
+     focused field would both swallow them and type them. The cursor stops on
+     the field wearing the ring, the act key steps into it, and Enter or Escape
+     steps back out. That is also why the ring is a class and not
+     :focus-visible — see ask.css. */
+  const FOCUSABLE = 'button,input,select,textarea,a[href],[tabindex]:not([tabindex="-1"])';
+  let sel = null;
+
+  const isField = el => !!(el && el.matches && el.matches('input,textarea,select'));
+
+  /* Whatever owns the keyboard right now: an open sheet, else the screen. A
+     sheet is modal, so the cursor must not be able to walk out from under it. */
+  function scope() {
+    if ($('#ask').classList.contains('on')) return $('#ask');
+    if ($('#set').classList.contains('on')) return $('#set');
+    return $('#s-' + scr);
+  }
+  function focusables() {
+    const box = scope();
+    if (!box) return [];
+    return Array.from(box.querySelectorAll(FOCUSABLE))
+      .filter(el => !el.disabled && el.offsetParent !== null);
+  }
+  function clearSel() { if (sel) sel.classList.remove('kb-sel'); sel = null; }
+
+  function moveSel(step) {
+    const list = focusables();
+    if (!list.length) { clearSel(); return; }
+    const at = sel ? list.indexOf(sel) : -1;
+    const i = at < 0 ? (step > 0 ? 0 : list.length - 1)
+                     : (at + step + list.length) % list.length;
+    clearSel();
+    sel = list[i];
+    sel.classList.add('kb-sel');
+    try { sel.scrollIntoView({ block: 'nearest' }); } catch {}
+    if (!isField(sel)) { try { sel.focus({ preventScroll: true }); } catch {} }
+  }
+
+  /* Answers whether it did anything, so the act key with nothing selected is
+     still whatever the browser makes of it. */
+  function actOnSel() {
+    if (!sel || !sel.isConnected) { clearSel(); return false; }
+    if (isField(sel)) { try { sel.focus(); } catch {} return true; }
+    sel.click();
+    return true;
+  }
+
+  /* Enter inside a field: confirm it and go to the next one — and file the
+     request when there is no next one, which is what "enter to add to queue
+     when at the bottom of the form" means. The title is a textarea, so this
+     deliberately takes Enter away from it: a newline in a request title is not
+     a thing anyone wants, and shift+Enter is still there for one. */
+  function enterFromField(el) {
+    const list = focusables();
+    const at = list.indexOf(el);
+    const next = at >= 0 ? list[at + 1] : null;
+    try { el.blur(); } catch {}
+    if (!next) { if (scr === 'write') $('#a-add').click(); clearSel(); return; }
+    clearSel();
+    sel = next;
+    sel.classList.add('kb-sel');
+    try { sel.scrollIntoView({ block: 'nearest' }); } catch {}
+    if (!isField(sel)) { try { sel.focus({ preventScroll: true }); } catch {} }
+    else { try { sel.focus(); } catch {} }
+  }
+
+  const SCREENS = ['write', 'queue', 'sent'];
+  function step(dir) {
+    const i = SCREENS.indexOf(scr);
+    const j = i + dir;
+    if (j < 0 || j >= SCREENS.length) return;
+    clearSel();
+    go(SCREENS[j]);
+  }
+
+  /* A custom binding is checked first, so putting `up` on a digit is allowed to
+     win over anything built in. */
+  const ACTIONS = ['left', 'right', 'up', 'down', 'act'];
+  function actionFor(e) {
+    const map = Store.get('keys') || {};
+    const k = e.key.toLowerCase();
+    for (const a of ACTIONS) if (map[a] && map[a] === k) return a;
+    if (e.key === 'ArrowLeft')  return 'left';
+    if (e.key === 'ArrowRight') return 'right';
+    if (e.key === 'ArrowUp')    return 'up';
+    if (e.key === 'ArrowDown')  return 'down';
+    return null;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (capturing) return;                       // a rebind is reading this key
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    const el = document.activeElement;
+    if (isField(el)) {
+      /* The only two bindings that reach a focused field, because everything
+         else there is a character being typed. */
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enterFromField(el); return; }
+      if (e.key === 'Escape') { e.preventDefault(); try { el.blur(); } catch {}
+                                if (sel) sel.classList.add('kb-sel'); }
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      if ($('#ask').classList.contains('on')) { closeAsk(false); clearSel(); return; }
+      if ($('#set').classList.contains('on')) { closeSettings(); clearSel(); return; }
+      clearSel();
+      return;
+    }
+
+    switch (actionFor(e)) {
+      case 'left':  step(-1); e.preventDefault(); return;
+      case 'right': step(1);  e.preventDefault(); return;
+      case 'up':    moveSel(-1); e.preventDefault(); return;
+      case 'down':  moveSel(1);  e.preventDefault(); return;
+      case 'act':   if (actOnSel()) e.preventDefault(); return;
+    }
+  });
+
+  /* Rebinding, the same capture ROOT uses: read the next key pressed rather
+     than asking anyone to spell "arrowup" into a text field. */
+  const KEY_ROWS = [
+    { k:'left',  label:'Previous screen' },
+    { k:'right', label:'Next screen' },
+    { k:'up',    label:'Cursor up' },
+    { k:'down',  label:'Cursor down' },
+    { k:'act',   label:'Use the selected control' },
+  ];
+  const KEY_SHOWN = { ' ':'space', ',':'comma', '.':'period', '/':'slash' };
+  const keyLabel = v => v === '' ? 'none' : (KEY_SHOWN[v] || v);
+  let capturing = null;
+
+  function renderKeys() {
+    const box = $('#set-keys'); if (!box) return;
+    const map = Store.get('keys') || {};
+    box.innerHTML = KEY_ROWS.map(r => `<div class="row">
+      <span class="row-l">${esc(r.label)}</span>
+      <button class="key-cap" data-key="${esc(r.k)}">${esc(keyLabel(map[r.k] ?? ''))}</button>
+    </div>`).join('');
+    box.querySelectorAll('.key-cap').forEach(b => b.onclick = () => captureKey(b));
+  }
+
+  function captureKey(btn) {
+    if (capturing) capturing();
+    const action = btn.dataset.key;
+    const was = btn.textContent;
+    btn.classList.add('on');
+    btn.textContent = 'press a key';
+    const done = () => {
+      document.removeEventListener('keydown', onKey, true);
+      capturing = null;
+      btn.classList.remove('on');
+      btn.textContent = was;
+    };
+    function onKey(ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      done();
+      if (ev.key === 'Escape') return;
+      const map = Object.assign({}, Store.get('keys'));
+      /* A key already bound elsewhere is taken off that action: two actions on
+         one key means the first wins and the second silently does nothing,
+         which reads as a broken setting rather than a choice. */
+      const v = (ev.key === 'Backspace' || ev.key === 'Delete') ? '' : ev.key.toLowerCase();
+      if (v) Object.keys(map).forEach(k => { if (map[k] === v) map[k] = ''; });
+      map[action] = v;
+      Store.set('keys', map);
+      renderKeys();
+      toast('rebound');
+    }
+    capturing = done;
+    document.addEventListener('keydown', onKey, true);
+  }
+
   /* ── boot ───────────────────────────────────────────────────────────── */
 
   function render() { paintCount(); renderQueue(); renderSent(); }
@@ -391,6 +575,9 @@
   /* The band's top line says where the requests land, and doubles as the way
      into settings — the button beside it is the one that admits to it. */
   $('#b-where').style.cursor = 'pointer';
+
+  /* the smoke drives these; nothing in the page calls them from outside */
+  window.ASK = { go, moveSel, clearSel, actOnSel, selected: () => sel, renderKeys };
 
   document.documentElement.setAttribute('data-theme', Store.get('theme') || 'void');
   renderLists();

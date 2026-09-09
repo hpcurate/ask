@@ -50,8 +50,9 @@ ask/
 │   ├── store.js    the queue, the history, the settings, the key
 │   ├── todoist.js  the API client and the intake contract — the only file that talks to the network
 │   └── app.js      the three screens
-└── test/
-    └── smoke.mjs   jsdom boot + behaviour checks; its one dev dependency is not part of the site
+├── test/
+│   └── smoke.mjs   jsdom boot + behaviour checks; its one dev dependency is not part of the site
+└── updates/        one file per shipped version, per _git-push/PROTOCOL.md
 ```
 
 ```
@@ -149,7 +150,43 @@ label there are recognisably the same thing.
 
 ---
 
+## 7. The keyboard
+
+A roving cursor over the controls of the screen you are on. Left and right step
+between the three screens and stop at the ends; up and down walk the controls;
+the act key uses the selected one. Enter confirms a field and moves to the next,
+and files the request from the last one — which deliberately takes Enter away
+from the title textarea, since a newline in a request title is not a thing
+anyone wants (shift+Enter still gives one).
+
+Two rules carry it:
+
+- **The focusable list is rebuilt on every move, never cached.** These screens
+  re-render constantly and a cached list hands back detached nodes. A miss
+  restarts at the top, so the cursor heals rather than breaks.
+- **A text field is selected but not focused.** The bindings are letters, and a
+  focused field would swallow them *and* type them. Space steps in; Enter or
+  Escape steps back out. That is why the ring is a class rather than
+  `:focus-visible` — on an unfocused field there is nothing to paint.
+
+The five bindings are settings (`a`, `u`, `.`, `e`, space by default). The
+arrows, Enter, Escape and Tab are built in and are not rebindable: they read the
+same on every keyboard, so there is nothing to choose.
+
+---
+
 ## Changelog
+
+### 1.1.0 — 2026-09-09 — the form works without a mouse
+
+- A roving cursor on the bindings the request named, with the arrows alongside.
+  Screens on left/right, controls on up/down, the act key to use one.
+- Enter confirms a field and moves on, and files the request at the end of the
+  form. Shift+Enter still types a newline.
+- All five bindings rebindable, capturing the next key pressed; a key already
+  bound elsewhere is freed rather than shadowed.
+- 49 checks. The cursor's movement itself needs a browser — jsdom has no
+  `offsetParent`, so the list it walks is empty there. See §7.
 
 ### 1.0.1 — 2026-09-09 — the inbox has an id, and a 400 has to say why
 

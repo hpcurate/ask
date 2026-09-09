@@ -202,6 +202,76 @@ check('priority is inverted for the API, so p1 is urgent',
     w.Todoist.errorText('something went wrong') === 'something went wrong');
 }
 
+/* The keyboard.
+   jsdom never populates offsetParent, so `focusables()` is empty here and the
+   cursor's *movement* cannot be driven at all — the same limit ROOT's harness
+   has, and the reason the ring and the walk between fields need a browser.
+   What is checkable is everything underneath: the bindings, the screen steps,
+   the guard that keeps typing from navigating, and Enter filing the form. */
+const key = (k, target = d, opts = {}) => target.dispatchEvent(
+  new w.KeyboardEvent('keydown', Object.assign({ key: k, bubbles: true, cancelable: true }, opts)));
+/* an earlier check left the title focused, and a focused field is deliberately
+   deaf to every binding — so the bindings cannot be tested from inside one */
+const unfocus = () => { try { d.activeElement && d.activeElement.blur(); } catch {} };
+
+check('the bindings ship as a, u, period, e and space',
+  ['left','right','up','down','act'].map(a => w.Store.get('keys')[a]).join('') === 'au.e ',
+  JSON.stringify(w.Store.get('keys')));
+
+w.ASK.go('write'); unfocus();
+key('u');
+check('the bound key steps to the next screen', $('#s-queue').classList.contains('on'),
+  [...d.querySelectorAll('.scr')].filter(x => x.classList.contains('on')).map(x => x.id).join(','));
+key('a');
+check('… and back to the previous one', $('#s-write').classList.contains('on'));
+key('a');
+check('… and it stops at the ends rather than wrapping round',
+  $('#s-write').classList.contains('on'));
+key('ArrowRight');
+check('the arrows work alongside the letters', $('#s-queue').classList.contains('on'));
+w.ASK.go('write'); unfocus();
+
+/* Enter at the bottom of the form files the request — the thing that makes the
+   form usable without reaching for a mouse. (In jsdom every field looks like
+   the last one, because the list it would walk is empty; the *walk* between
+   fields is the part a browser has to confirm.) */
+const before = w.Store.queue().length;
+$('#a-title').value = 'typed with the keyboard';
+$('#a-notes').focus();
+key('Enter', $('#a-notes'));
+check('Enter from the end of the form files the request',
+  w.Store.queue().length === before + 1 &&
+  w.Store.queue()[w.Store.queue().length - 1].title === 'typed with the keyboard',
+  before + ' → ' + w.Store.queue().length);
+check('… and shift+Enter is left alone, so a newline is still typeable',
+  /Enter' && !e\.shiftKey/.test(fs.readFileSync(path.join(APP, 'js/app.js'), 'utf8')));
+unfocus();
+
+/* A rebind takes the key off whatever else had it, so two actions can never
+   sit on one key with the first silently winning. */
+w.Store.set('keys', Object.assign({}, w.Store.get('keys'), { left: 'q' }));
+w.ASK.go('queue'); unfocus();
+key('q');
+check('a rebound key takes effect', $('#s-write').classList.contains('on'));
+w.ASK.go('queue'); unfocus();
+key('a');
+check('… and the key it replaced goes dead', $('#s-queue').classList.contains('on'));
+w.Store.set('keys', Object.assign({}, w.Store.DEFAULTS.keys));
+
+/* Typing never navigates: every binding is a letter, so this is the guard the
+   whole scheme rests on. */
+w.ASK.go('write');
+$('#a-title').value = '';
+$('#a-title').focus();
+key('u', $('#a-title'));
+check('a bound letter typed into a field does not change screen',
+  $('#s-write').classList.contains('on'));
+unfocus();
+
+check('the rebind rows are drawn from the same list the keys come from',
+  (() => { w.ASK.renderKeys(); return d.querySelectorAll('#set-keys .key-cap').length === 5; })(),
+  String(d.querySelectorAll('#set-keys .key-cap').length));
+
 check('still no errors after all of that', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 console.log(out.join('\n'));

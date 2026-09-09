@@ -20,6 +20,12 @@ window.Store = (function () {
     projects: ['root', 'hub', 'ask', 'other'],
     tabs: ['do', 'log', 'plan', 'store', 'tend', 'track', 'learn', 'day',
            'create', 'tools', 'settings', 'search', 'other'],
+    /* The five keys the cursor moves on. Rebindable for the same reason ROOT's
+       are: the defaults are a guess about a layout, and a key that sits under
+       the finger on one keyboard is nowhere near it on another. The arrows,
+       Enter, Escape and Tab are built in and are not in here — those read the
+       same everywhere, so there is nothing to choose. */
+    keys: { left:'a', right:'u', up:'.', down:'e', act:' ' },
   };
 
   const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };
@@ -27,6 +33,10 @@ window.Store = (function () {
 
   let data  = read(K_DATA, null) || { queue: [], sent: [] };
   let prefs = Object.assign({}, DEFAULTS, read(K_PREFS, null) || {});
+  /* A stored record written before an action existed is missing that key, so
+     the map is merged rather than replaced — the same rule the rest of prefs
+     follows one level up. */
+  prefs.keys = Object.assign({}, DEFAULTS.keys, prefs.keys || {});
 
   const save      = () => write(K_DATA, data);
   const savePrefs = () => write(K_PREFS, prefs);

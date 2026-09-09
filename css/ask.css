@@ -195,6 +195,23 @@ textarea#a-title{min-height:66px;font-size:14px;line-height:1.45}
 :focus{outline:none}
 :focus-visible{outline:2px solid var(--y);outline-offset:2px;border-radius:var(--r1)}
 
+/* The keyboard cursor
+   Deliberately the same ring :focus-visible draws rather than a second look: a
+   control the cursor is on and one the tab key reached are the same state, and
+   drawing them differently would invent a distinction the user does not have.
+   It is a class only because the cursor does not *focus* text fields — the
+   bindings are letters, and a focused field would swallow them and type them —
+   so on those there is nothing for :focus-visible to paint. */
+.kb-sel{outline:2px solid var(--y);outline-offset:2px;border-radius:var(--r1)}
+
+/* the rebind rows hold their width so the row does not jump between a
+   one-character binding and "press a key" */
+.key-cap{min-width:104px;text-align:center;background:none;
+  border:var(--bw) solid var(--bd);border-radius:var(--r1);color:var(--tx-2);
+  font:400 10px/1 var(--mono);letter-spacing:.06em;padding:9px 10px;cursor:pointer}
+.key-cap.on{border-color:var(--y);color:var(--y);background:var(--y-fade)}
+.key-cap:hover{border-color:var(--bd-2)}
+
 @media (prefers-reduced-motion:reduce){
   .scr.on{animation:none}
   #nav,.sheet,.sheet-back,#toast{transition:none}
