@@ -1,15 +1,21 @@
-/* ASK — the frame, the three screens and the sheet.
+/* ASK — the frame, the screens, the quick view and the sheet.
    The shape is ROOT's: a fixed band with the wordmark, one scroll body under
    it, a floating pill at the bottom, and a bottom sheet for anything modal.
    On a wide screen the whole app is a phone-shaped frame in the middle, which
    is ROOT 4.5's default and the same one rule: the transform centres the box
-   and makes <body> the containing block for its own fixed children. */
+   and makes <body> the containing block for its own fixed children.
+
+   Everything inside it is a block. One radius scale, one filled surface per
+   depth, hairlines only where two blocks would otherwise merge, and no
+   decoration that is not a control — the whole interface is rounded rectangles
+   big enough for a thumb, which is what makes six questions in six seconds
+   possible without looking closely at any of them. */
 
 html{height:100%;background:var(--bg);-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
   position:fixed;inset:0;overflow:hidden;
   background:var(--bg);color:var(--tx);
-  font-family:var(--mono);font-size:14px;
+  font-family:var(--ui);font-size:15px;
   overscroll-behavior:none}
 
 @media (min-width:560px){
@@ -20,7 +26,7 @@ body{
     height:min(var(--frame-h), 100vh);
     transform:translate(-50%,-50%);
     border:var(--bw) solid var(--bd);
-    border-radius:calc(var(--r-base) * 4);
+    border-radius:calc(var(--r-base) * 2.5);
     overflow:hidden;
     box-shadow:0 24px 70px rgba(0,0,0,.45)}
 }
@@ -31,9 +37,9 @@ body{
   display:flex;flex-direction:column;justify-content:center;gap:8px;
   padding:calc(var(--sat) + 14px) 18px 12px}
 .b-label{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px;
-  font:400 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:var(--caps);color:var(--tx-2)}
+  font:500 11px/1 var(--ui);letter-spacing:.06em;text-transform:var(--caps);color:var(--tx-2)}
 .b-set{background:none;border:none;cursor:pointer;color:var(--y);
-  font:400 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:var(--caps);padding:2px 0}
+  font:600 11px/1 var(--ui);letter-spacing:.06em;text-transform:var(--caps);padding:2px 0}
 .b-set:hover{opacity:.75}
 .b-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .b-logo{font:800 34px/1 var(--head);letter-spacing:-.02em;color:var(--tx);
@@ -54,113 +60,142 @@ body{
 
 /* Section heads ── ROOT's .sec */
 .sec{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin:22px 0 10px;font:700 10px/1 var(--head);letter-spacing:.14em;
+  margin:26px 0 10px;font:700 11.5px/1 var(--ui);letter-spacing:.08em;
   text-transform:var(--caps);color:var(--tx-2)}
 .sec:first-child{margin-top:0}
-.note{font:400 10px/1.65 var(--mono);letter-spacing:.03em;color:var(--mu);margin:-4px 0 12px}
-.note b{color:var(--tx-2);font-weight:400}
-.note code{color:var(--y);font-size:9.5px}
+.note{font:400 12.5px/1.6 var(--ui);color:var(--tx-2);margin:-2px 0 14px}
+.note b{color:var(--tx);font-weight:600}
+.note code{font:400 12px/1 var(--mono);color:var(--y)}
 
 /* Fields */
-.f{margin-bottom:14px}
-.lbl{display:block;font:400 9.5px/1 var(--mono);letter-spacing:.12em;
-  text-transform:var(--caps);color:var(--tx-2);margin-bottom:7px}
-.lbl em{font-style:normal;color:var(--mu);text-transform:none;letter-spacing:.03em;margin-left:7px}
+.f{margin-bottom:16px}
+.lbl{display:block;font:600 11.5px/1 var(--ui);letter-spacing:.07em;
+  text-transform:var(--caps);color:var(--tx-2);margin-bottom:9px}
+.lbl em{font-style:normal;font-weight:400;color:var(--mu);
+  text-transform:none;letter-spacing:0;margin-left:8px}
 input[type=text],input[type=password],textarea,select{
   width:100%;background:var(--s1);color:var(--tx);
-  border:var(--bw) solid var(--bd);border-radius:var(--r1);
-  padding:calc(11px * var(--dens)) calc(12px * var(--dens));
-  font:400 12.5px/1.5 var(--mono);letter-spacing:.02em;
+  border:var(--bw) solid var(--bd);border-radius:var(--r2);
+  padding:calc(14px * var(--dens)) calc(15px * var(--dens));
+  font:400 15px/1.45 var(--ui);
   outline:none;resize:vertical}
 input::placeholder,textarea::placeholder{color:var(--mu)}
-input:focus,textarea:focus,select:focus{border-color:var(--yb)}
-textarea{min-height:84px}
-textarea#a-title{min-height:66px;font-size:14px;line-height:1.45}
+input:focus,textarea:focus,select:focus{border-color:var(--y)}
+textarea{min-height:92px}
+/* the request title is a verbatim record, so it is set in the font where the
+   characters are the point */
+textarea#a-title{min-height:76px;font:400 15px/1.5 var(--mono)}
 
-/* Chips ── the one control this app is mostly made of */
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{background:var(--s1);color:var(--tx-2);
-  border:var(--bw) solid var(--bd);border-radius:var(--r-pill);
-  padding:calc(7px * var(--dens)) calc(13px * var(--dens));
-  font:400 11px/1 var(--mono);letter-spacing:.04em;cursor:pointer;
-  transition:color .13s ease,border-color .13s ease,background .13s ease}
-.chip:hover{border-color:var(--bd-2)}
-.chip.on{color:var(--y);border-color:var(--yb);background:var(--yd)}
+/* Chips ── the one control this app is mostly made of. A filled block, not an
+   outline: picked is a solid colour, unpicked is a solid surface, and there is
+   nothing in between to read. */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--s2);color:var(--tx-2);
+  border:var(--bw) solid transparent;border-radius:var(--r2);
+  padding:calc(11px * var(--dens)) calc(15px * var(--dens));
+  font:500 13.5px/1 var(--ui);cursor:pointer;
+  transition:color .13s ease,background .13s ease}
+.chip:hover{background:var(--s3);color:var(--tx)}
+.chip.on{color:var(--on-y);background:var(--y)}
 /* a type chip lights in its own colour, the one its Todoist label wears */
-.chip[data-type].on{color:var(--tc);border-color:var(--tc);
-  background:color-mix(in srgb, var(--tc) 14%, transparent)}
+.chip[data-type].on{color:#fff;background:var(--tc)}
 .chip[data-type="fix"]{--tc:var(--t-fix)}
 .chip[data-type="change"]{--tc:var(--t-change)}
 .chip[data-type="feature"]{--tc:var(--t-feature)}
 .chip[data-type="idea"]{--tc:var(--t-idea)}
 
+/* the theme chips carry the ground they set, so the choice is visible before
+   it is made */
+.swatches .chip::before{content:'';display:inline-block;width:13px;height:13px;
+  border-radius:calc(var(--r1) * .7);margin-right:9px;vertical-align:-1px;
+  border:var(--bw) solid rgba(128,128,128,.45)}
+.swatches .chip[data-val="void"]::before{background:#0e0e0e}
+.swatches .chip[data-val="ember"]::before{background:#100d0b}
+.swatches .chip[data-val="paper"]::before{background:#f2ede3}
+.swatches .chip[data-val="noir"]::before{background:#fafafa}
+
+/* Accent — a grid of blocks, and the one you are on is ringed in the text
+   colour so it reads on any of them */
+.acc{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:8px}
+.acc-dot{height:46px;border-radius:var(--r2);cursor:pointer;
+  background:var(--c);border:2px solid transparent;
+  box-shadow:inset 0 0 0 var(--bw) rgba(128,128,128,.3)}
+.acc-dot.on{border-color:var(--tx)}
+.acc-dot.def{background:var(--y);
+  background-image:linear-gradient(135deg,var(--y) 50%,var(--s3) 50%)}
+.acc-pick{display:flex;align-items:center;gap:12px}
+input[type=color]{width:46px;height:34px;padding:0;border:none;background:none;
+  border-radius:var(--r1);cursor:pointer}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:var(--r1)}
+
 /* Buttons */
 .btn{width:100%;display:block;margin-top:12px;
-  background:var(--y);color:var(--on-y);border:none;border-radius:var(--r1);
-  padding:calc(14px * var(--dens));font:700 11px/1 var(--head);
-  letter-spacing:.14em;text-transform:var(--caps);cursor:pointer}
+  background:var(--y);color:var(--on-y);border:none;border-radius:var(--r3);
+  padding:calc(17px * var(--dens));font:600 15.5px/1 var(--ui);
+  letter-spacing:.01em;cursor:pointer}
 .btn:disabled{opacity:.34;cursor:default}
-.btn-2{background:none;color:var(--tx-2);border:var(--bw) solid var(--bd)}
-.btn-2:hover:not(:disabled){border-color:var(--bd-2);color:var(--tx)}
-.btn-danger{background:none;color:var(--re);border:var(--bw) solid var(--bd)}
+.btn-2{background:var(--s2);color:var(--tx)}
+.btn-2:hover:not(:disabled){background:var(--s3)}
+.btn-danger{background:var(--s2);color:var(--re)}
 .mini{background:none;border:none;color:var(--y);cursor:pointer;
-  font:400 10px/1 var(--mono);letter-spacing:.06em;padding:4px 0}
+  font:500 13px/1 var(--ui);padding:6px 0}
 .mini.danger{color:var(--re)}
 
 /* A queued request, and a sent one */
-.card{background:var(--s1);border:var(--bw) solid var(--bd);border-radius:var(--r2);
-  padding:calc(13px * var(--dens));margin-bottom:9px;
-  border-left:3px solid var(--tc,var(--bd-2))}
+.card{background:var(--s1);border-radius:var(--r3);
+  padding:calc(16px * var(--dens));margin-bottom:10px;
+  border-left:4px solid var(--tc,var(--bd-2))}
 .card[data-type="fix"]{--tc:var(--t-fix)}
 .card[data-type="change"]{--tc:var(--t-change)}
 .card[data-type="feature"]{--tc:var(--t-feature)}
 .card[data-type="idea"]{--tc:var(--t-idea)}
-.c-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:7px}
-.c-type{font:700 9.5px/1 var(--head);letter-spacing:.14em;text-transform:var(--caps);color:var(--tc)}
-.c-meta{font:400 9.5px/1 var(--mono);letter-spacing:.05em;color:var(--mu)}
+.c-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
+.c-type{font:700 11px/1 var(--ui);letter-spacing:.08em;text-transform:var(--caps);color:var(--tc)}
+.c-meta{font:400 11.5px/1 var(--ui);color:var(--mu)}
 /* the title is the record of what was asked — shown exactly as it was typed */
-.c-title{font:400 12.5px/1.5 var(--mono);color:var(--tx);white-space:pre-wrap;word-break:break-word}
-.c-notes{font:400 10px/1.6 var(--mono);color:var(--tx-2);margin-top:7px;
-  padding-top:7px;border-top:var(--bw) solid var(--bd);white-space:pre-wrap}
-.c-acts{display:flex;gap:14px;margin-top:9px}
+.c-title{font:400 13.5px/1.55 var(--mono);color:var(--tx);white-space:pre-wrap;word-break:break-word}
+.c-notes{font:400 12.5px/1.6 var(--ui);color:var(--tx-2);margin-top:10px;
+  padding-top:10px;border-top:var(--bw) solid var(--bd);white-space:pre-wrap}
+.c-acts{display:flex;gap:16px;margin-top:10px}
 .c-link{color:var(--y);text-decoration:none}
 
-.empty{text-align:center;color:var(--mu);font:400 11px/1.7 var(--mono);
-  padding:34px 18px;border:var(--bw) dashed var(--bd);border-radius:var(--r2)}
+.empty{text-align:center;color:var(--mu);font:400 13px/1.7 var(--ui);
+  padding:38px 18px;border:var(--bw) dashed var(--bd);border-radius:var(--r3)}
 
 /* Pill ── three tabs, ROOT's floating chrome */
 #nav{
   position:fixed;z-index:60;left:50%;
   bottom:max(6px, env(safe-area-inset-bottom));
   transform:translateX(-50%);
-  width:min(300px, calc(var(--frame-w) - 120px));
+  width:min(310px, calc(var(--frame-w) - 110px));
   height:var(--nav-fh);
-  display:flex;align-items:stretch;gap:2px;padding:5px;
-  background:color-mix(in srgb, var(--bg) 82%, transparent);
+  display:flex;align-items:stretch;gap:4px;padding:6px;
+  background:color-mix(in srgb, var(--s2) 88%, transparent);
   -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
-  border:var(--bw) solid var(--bd);border-radius:calc(var(--nav-fh) / 2);
+  border:var(--bw) solid var(--bd);border-radius:calc(var(--r-base) * 1.8);
   box-shadow:var(--shadow-chrome)}
-@media (max-width:559px){ #nav{width:min(300px, calc(100vw - 120px))} }
+@media (max-width:559px){ #nav{width:min(310px, calc(100vw - 110px))} }
 .tab{flex:1;min-width:0;background:none;border:none;cursor:pointer;position:relative;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-  border-radius:var(--r-pill);color:var(--mu);
-  font:400 8px/1 var(--mono);letter-spacing:.1em;text-transform:var(--caps);
-  transition:color .16s ease}
+  display:flex;align-items:center;justify-content:center;
+  border-radius:var(--r2);color:var(--tx-2);
+  font:600 13px/1 var(--ui);
+  transition:color .16s ease,background .16s ease}
 .tab.on{color:var(--on-y);background:var(--y)}
-.tab:not(.on):hover{color:var(--tx-2)}
-.tab .n{position:absolute;top:6px;right:calc(50% - 22px);
-  min-width:15px;height:15px;padding:0 4px;border-radius:var(--r-pill);
-  background:var(--y);color:var(--on-y);font:700 9px/15px var(--mono);text-align:center}
+.tab:not(.on):hover{color:var(--tx);background:var(--s3)}
+.tab .n{position:absolute;top:7px;right:calc(50% - 26px);
+  min-width:17px;height:17px;padding:0 5px;border-radius:var(--r-pill);
+  background:var(--y);color:var(--on-y);font:700 10px/17px var(--ui);text-align:center}
 .tab.on .n{background:var(--on-y);color:var(--y)}
 
 /* Toast */
 #toast{position:fixed;z-index:120;left:50%;
-  bottom:calc(var(--nav-fh) + 22px + env(safe-area-inset-bottom));
+  bottom:calc(var(--nav-fh) + 24px + env(safe-area-inset-bottom));
   transform:translateX(-50%) translateY(8px);
   opacity:0;visibility:hidden;
   background:var(--y);color:var(--on-y);
-  font:700 11px/1 var(--mono);letter-spacing:.08em;
-  padding:10px 18px;border-radius:var(--r1);
+  font:600 13.5px/1 var(--ui);
+  padding:14px 20px;border-radius:var(--r3);
   max-width:calc(var(--frame-w) - 60px);text-align:center;
   transition:opacity .2s ease,transform .2s ease,visibility 0s linear .2s}
 #toast.on{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);
@@ -171,78 +206,96 @@ textarea#a-title{min-height:66px;font-size:14px;line-height:1.45}
   opacity:0;pointer-events:none;transition:opacity .18s}
 .sheet-back.on{opacity:1;pointer-events:auto}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:105;
-  background:var(--s1);border-top:var(--bw) solid var(--bd);
+  background:var(--bg);border-top:var(--bw) solid var(--bd);
   border-radius:var(--r-sheet) var(--r-sheet) 0 0;
-  padding:14px 18px calc(20px + env(safe-area-inset-bottom));
+  padding:16px 18px calc(22px + env(safe-area-inset-bottom));
   transform:translateY(105%);transition:transform .22s ease;
-  max-height:calc(var(--frame-h) * .82);overflow-y:auto}
+  max-height:calc(var(--frame-h) * .86);overflow-y:auto}
 .sheet.on{transform:translateY(0)}
-.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
-.sheet-ttl{font:700 12px/1 var(--head);letter-spacing:.12em;text-transform:var(--caps);color:var(--tx)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.sheet-ttl{font:700 14px/1 var(--ui);letter-spacing:.06em;text-transform:var(--caps);color:var(--tx)}
 .sheet-close{background:none;border:none;color:var(--y);cursor:pointer;
-  font:400 11px/1 var(--mono);letter-spacing:.06em}
+  font:600 14px/1 var(--ui)}
 
-.status{font:400 10px/1.5 var(--mono);letter-spacing:.04em;color:var(--mu);margin:8px 0 12px}
+.status{font:400 12.5px/1.5 var(--ui);color:var(--mu);margin:10px 0 14px}
 .status.ok{color:var(--gr)}
 .status.bad{color:var(--re)}
 
-.row{display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:11px 0;border-top:var(--bw) solid var(--bd)}
-.row:first-of-type{border-top:none}
-.row-l{font:400 11.5px/1.4 var(--mono);color:var(--tx)}
-.row-l small{display:block;font:400 9.5px/1.5 var(--mono);color:var(--mu);margin-top:3px}
+/* A settings row is a block too, rather than a rule between two lines */
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  background:var(--s1);border-radius:var(--r3);
+  padding:14px 16px;margin-bottom:8px}
+.row-l{font:400 14px/1.35 var(--ui);color:var(--tx)}
+.row-l small{display:block;font:400 12px/1.45 var(--ui);color:var(--mu);margin-top:4px}
 
-/* Quick mode
-   A full-height sheet rather than a small dialog, because one question at a
-   time deserves the whole screen — the point is that nothing else is competing
-   for attention. The step slides up as it lands, which is the only motion in
-   here: anything more and answering six questions in six seconds becomes six
+/* Quick mode ─────────────────────────────────────────────────────────────
+   Not an overlay. When it is on it *is* the write screen: it sits between the
+   band and the pill, fills what is left, and hands its middle third to the
+   answers — so a list of thirteen tabs is laid out to fit the window rather
+   than running off the bottom of it, and whatever is selected is always on
+   screen. The step slides up as it lands, which is the only motion in here:
+   anything more and answering six questions in six seconds becomes six
    animations you wait through. */
-.q-back{position:fixed;inset:0;z-index:130;background:var(--bg);
-  opacity:0;pointer-events:none;transition:opacity .16s ease}
-.q-back.on{opacity:.97;pointer-events:auto}
-.q-wrap{position:fixed;inset:0;z-index:135;
-  display:none;flex-direction:column;justify-content:center;
-  padding:calc(28px * var(--dens)) calc(24px * var(--dens));
-  pointer-events:none}
-.q-wrap.on{display:flex;pointer-events:auto}
+.q-wrap{position:absolute;left:0;right:0;z-index:15;
+  top:var(--band-h);
+  bottom:calc(var(--nav-fh) + 16px + env(safe-area-inset-bottom));
+  display:none;flex-direction:column;
+  padding:2px 18px 0}
+.q-wrap.on{display:flex}
+/* the long form is not behind it, it is instead of it — one write screen at a
+   time, whichever one the toggle chose */
+body.q-mode #s-write{display:none}
+.q-wrap > *{max-width:var(--readable);width:100%;margin-left:auto;margin-right:auto}
 
-.q-dots{display:flex;gap:6px;justify-content:center;margin-bottom:calc(30px * var(--dens))}
-.q-dots i{width:22px;height:3px;border-radius:2px;background:var(--s3);transition:background .2s ease}
+.q-dots{display:flex;gap:5px;flex:0 0 auto;padding-bottom:18px}
+.q-dots i{flex:1;height:5px;border-radius:3px;background:var(--s2);transition:background .2s ease}
 .q-dots i.done{background:color-mix(in srgb, var(--y) 45%, transparent)}
 .q-dots i.on{background:var(--y)}
 
-.q-step{animation:q-in .18s var(--ease-out, cubic-bezier(.34,1.4,.5,1)) both}
+.q-ask{flex:0 0 auto;font:800 clamp(23px, 6.4vw, 30px)/1.15 var(--head);
+  letter-spacing:-.02em;color:var(--tx);padding-bottom:16px;
+  animation:q-in .18s cubic-bezier(.34,1.4,.5,1) both}
+.q-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  animation:q-in .18s cubic-bezier(.34,1.4,.5,1) both}
 @keyframes q-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.q-ask{font:800 clamp(24px, 7.5vw, 34px)/1.15 var(--head);letter-spacing:-.02em;
-  color:var(--tx);margin-bottom:calc(22px * var(--dens))}
-.q-field{width:100%;min-height:120px;background:var(--s1);color:var(--tx);
-  border:var(--bw) solid var(--bd);border-radius:var(--r2);
-  padding:calc(14px * var(--dens));font:400 15px/1.5 var(--mono);
+
+.q-field{flex:1 1 auto;width:100%;min-height:0;background:var(--s1);color:var(--tx);
+  border:var(--bw) solid var(--bd);border-radius:var(--r3);
+  padding:calc(16px * var(--dens));font:400 16px/1.5 var(--mono);
   outline:none;resize:none}
 .q-field:focus{border-color:var(--y)}
 
-.q-opts{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto;
+/* The answers. A grid rather than a list: JS measures what fits and lays them
+   out in as many columns as it takes, filling top to bottom so the cursor
+   keeps moving the way it reads. */
+.q-opts{flex:1 1 auto;min-height:0;overflow:auto;
+  display:grid;grid-template-columns:1fr;gap:8px;align-content:start;
   scrollbar-width:none}
 .q-opts::-webkit-scrollbar{display:none}
-.q-opt{display:flex;align-items:center;gap:calc(13px * var(--dens));width:100%;
-  background:var(--s1);border:var(--bw) solid var(--bd);border-radius:var(--r2);
-  padding:calc(13px * var(--dens)) calc(15px * var(--dens));cursor:pointer;
-  color:var(--tx-2);font:400 13px/1 var(--mono);letter-spacing:.03em;text-align:left;
+.q-opt{display:flex;align-items:center;gap:13px;width:100%;min-width:0;
+  background:var(--s1);border:2px solid transparent;border-radius:var(--r3);
+  padding:calc(15px * var(--dens)) calc(16px * var(--dens));cursor:pointer;
+  color:var(--tx-2);font:500 15px/1 var(--ui);text-align:left;
   transition:border-color .12s ease,color .12s ease,background .12s ease}
-.q-opt .q-n{flex:0 0 auto;width:19px;height:19px;border-radius:var(--r1);
-  background:var(--s3);color:var(--mu);font:400 10px/19px var(--mono);text-align:center}
-.q-opt.on{border-color:var(--y);color:var(--tx);background:var(--y-fade)}
+.q-opt .q-n{flex:0 0 auto;width:26px;height:26px;border-radius:var(--r1);
+  background:var(--s3);color:var(--mu);font:500 12px/26px var(--ui);text-align:center}
+.q-opt .q-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* a long list on a short window gets smaller blocks before it gets a second
+   column, and a second column before it gets a scrollbar */
+.q-opts.tight .q-opt{padding:calc(10px * var(--dens)) calc(13px * var(--dens));
+  font-size:14px;gap:11px}
+.q-opts.tight .q-n{width:22px;height:22px;line-height:22px;font-size:11px}
+.q-opt.on{border-color:var(--y);color:var(--tx);background:var(--yd)}
 .q-opt.on .q-n{background:var(--y);color:var(--on-y)}
-.q-opt:hover{border-color:var(--bd-2)}
+.q-opt:hover{background:var(--s2);color:var(--tx)}
 
-.q-hint{margin-top:calc(20px * var(--dens));text-align:center;
-  font:400 10px/1.6 var(--mono);letter-spacing:.04em;color:var(--mu)}
+.q-hint{flex:0 0 auto;padding-top:16px;text-align:center;
+  font:400 12px/1.5 var(--ui);color:var(--mu)}
 
-@media (prefers-reduced-motion:reduce){ .q-step{animation:none} }
+@media (prefers-reduced-motion:reduce){ .q-ask,.q-body{animation:none} }
 
 :focus{outline:none}
-:focus-visible{outline:2px solid var(--y);outline-offset:2px;border-radius:var(--r1)}
+:focus-visible{outline:2px solid var(--y);outline-offset:2px;border-radius:var(--r2)}
 
 /* The keyboard cursor
    Deliberately the same ring :focus-visible draws rather than a second look: a
@@ -251,15 +304,15 @@ textarea#a-title{min-height:66px;font-size:14px;line-height:1.45}
    It is a class only because the cursor does not *focus* text fields — the
    bindings are letters, and a focused field would swallow them and type them —
    so on those there is nothing for :focus-visible to paint. */
-.kb-sel{outline:2px solid var(--y);outline-offset:2px;border-radius:var(--r1)}
+.kb-sel{outline:2px solid var(--y);outline-offset:2px;border-radius:var(--r2)}
 
 /* the rebind rows hold their width so the row does not jump between a
    one-character binding and "press a key" */
-.key-cap{min-width:104px;text-align:center;background:none;
-  border:var(--bw) solid var(--bd);border-radius:var(--r1);color:var(--tx-2);
-  font:400 10px/1 var(--mono);letter-spacing:.06em;padding:9px 10px;cursor:pointer}
-.key-cap.on{border-color:var(--y);color:var(--y);background:var(--y-fade)}
-.key-cap:hover{border-color:var(--bd-2)}
+.key-cap{min-width:112px;text-align:center;background:var(--s2);
+  border:2px solid transparent;border-radius:var(--r2);color:var(--tx-2);
+  font:500 13px/1 var(--ui);padding:12px 12px;cursor:pointer}
+.key-cap.on{border-color:var(--y);color:var(--y);background:var(--yd)}
+.key-cap:hover{background:var(--s3)}
 
 @media (prefers-reduced-motion:reduce){
   .scr.on{animation:none}

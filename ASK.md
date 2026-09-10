@@ -123,7 +123,7 @@ duplicates the task to save a note.
 | Key | Holds |
 | --- | --- |
 | `ask_v1` | `{ queue, sent }` — the sent list is capped at 200 |
-| `ask_prefs_v1` | theme, default project and type, and the project/tab lists |
+| `ask_prefs_v1` | theme and accent, default project and type, the project/tab lists, the key bindings, and whether quick mode is on |
 | `root_todoist_v1` | **ROOT's key, deliberately under ROOT's own name** — served from the same origin as ROOT, ASK needs nothing pasted in |
 
 The key is never in an export. `export .md` writes the queue, the history and
@@ -138,7 +138,16 @@ sites, and a stylesheet shared across repos is a dependency neither wants. The
 names are the contract — anything written against ROOT's tokens reads the same
 here.
 
-Four themes instead of fifteen. This app is a form, not a place you live.
+Four themes instead of fifteen. This app is a form, not a place you live — and
+one accent on top of them, which is yours to set. See §9.
+
+**Everything is a block.** One radius scale, one filled surface per depth,
+hairlines only where two blocks would otherwise merge, and no decoration that is
+not a control. A picked chip is a solid colour and an unpicked one a solid
+surface, with nothing in between to read. The interface font is the platform's
+own, because a form you fill in on a phone should read like the phone; the mono
+is kept for the two places where the characters themselves matter — a request
+title, which is a verbatim record, and code.
 
 The frame is ROOT 4.5's: past 560px the whole app is a phone-shaped box in the
 middle of the screen, centred by a transform on `<body>` which also makes body
@@ -175,36 +184,98 @@ same on every keyboard, so there is nothing to choose.
 
 ## 8. Quick mode
 
-Off by default. With it on, a *quick add* button asks for one field at a time —
-request, kind, project, area, priority, note — and **answering is advancing**: a
-digit picks a numbered option, or the cursor keys and the act key do; a text step
-takes Enter and lands with its field already focused. There is no confirm button
-anywhere in the flow. Escape steps *back* one question rather than out, because
-losing four answers to one mistyped key is how a fast path stops getting used.
+A switch in settings, off by default, and when it is on **it is the write
+screen** — not an overlay over it, not a button you reach for. The long form
+and the flow are two ways of writing the same request, and the toggle chooses
+which one the app shows until it is toggled back.
 
-**It is a mode, not a one-shot.** Filing does not close it: the note step files
-the request, clears the form and comes straight back to the first question, so a
-run of requests is a run of answers with nothing in between them. The first
-question is the only place it can be left — Escape there is the way out, the
-same key that steps back on every other question — and it says so, alongside how
-many the run has queued so far. That count is also the only sign on screen that
-the last one landed, since the queue behind the overlay is not being read.
+One question at a time — request, kind, project, area, priority, note — and
+**answering is advancing**: a digit picks a numbered answer, or the cursor keys
+and the act key do; a text step takes Enter and lands with its field already
+focused. There is no confirm button anywhere in it.
+
+**Escape starts this request over**, at the first question, with the answers
+cleared — there is nowhere to leave to in a permanent view, and the thing worth
+undoing is a request that was never filed. Backspace is the small undo, one
+question back, and in a text field it only does that once the field is empty.
+
+**Filing does not leave either.** The note step files the request, clears it and
+asks the first question again, so a run of requests is a run of answers with
+nothing in between them. The first question carries how many the run has queued
+so far, which is also the only sign on screen that the last one landed — the
+queue is a screen away.
 
 A filing the form rejects — an empty request line — keeps the question rather
-than dropping out of the flow; the toast has already said what is missing, and
-the field it would send you to is behind the overlay.
+than dropping out; the toast has already said what is missing.
+
+### The answers fit the window
+
+A list of thirteen tabs in one column runs off the bottom of a short window, and
+a highlight that walks past the fold is a highlight you cannot see — which
+breaks the list exactly when it is longest. So the layout is measured, in this
+order: one column of full-size blocks, one column of smaller ones, as many
+columns as the width allows, the same again smaller. The first shape whose rows
+fit the space wins. Columns fill top to bottom, so **down** still means the next
+answer and left and right step a column. If nothing fits — a very short window —
+the last shape stands and the box scrolls with the selection scrolled into view,
+which is the fallback rather than the plan.
+
+### Two things it does not do
 
 It is not a second form. Every step writes the same `draft` the long form uses
 and files through the same `readForm()` / `Store.add()`, so there is one
 definition of a request and the two cannot drift.
 
-The one hand-back: picking **other** as the project needs a name typed and the
-flow has nowhere to type one, so it closes, carries the title over and puts the
-cursor in the long form's project field.
+It does not hand back. Picking **other** as the project used to close the flow
+and put the cursor in the long form's project field; with the flow *being* the
+screen there is nothing to hand back to, so "other" grows the flow a question
+and asks for the name in place. The one thing that does borrow the long form is
+editing a queued request — an edit is a whole request at once, which is exactly
+what quick mode is not — and saving it hands the screen back.
+
+---
+
+## 9. The accent
+
+The theme sets the surfaces; the accent is one colour on top of them, and it is
+yours. Ten presets and a colour picker in settings, kept as `#rrggbb` in prefs
+and written onto `<html>` as an inline `--y` — the same custom property the
+tokens mix `--yd`, `--yb` and `--y-fade` *from*, which is why one assignment
+repaints the chips, the pill, the toast, the wordmark's stop and the quick
+view's highlight together. Nothing in the app hardcodes the accent; that is the
+rule that makes this a one-liner rather than a search.
+
+`--on-y`, the ink on top of a filled block, is worked out from the colour's
+brightness rather than stored. White on a yellow accent is unreadable and no one
+should have to notice that themselves.
+
+Empty means the theme's own, which is a different state from having chosen the
+same colour the theme happened to have: only the first one follows when the
+theme changes. It is applied in the same inline script that applies the theme,
+before the first paint, because a preference read after the first paint is a
+flash.
 
 ---
 
 ## Changelog
+
+### 1.3.0 — 2026-09-10 — quick mode is a view, and the accent is yours
+
+- Quick mode is no longer a detour: with it on it **is** the write screen, and
+  it stays that way. No overlay, no button to reach for. See §8.
+- Escape starts the current request over instead of leaving; backspace is the
+  one-question undo.
+- The answers are laid out to fit the window — smaller blocks, then columns,
+  before anything scrolls — and the selection is always in view. That is the
+  thing that was broken with thirteen tabs on a short screen.
+- "Other" asks for the project name inside the flow rather than handing back to
+  a form that is not on screen. Editing a queued request still borrows it.
+- A custom accent in settings: ten presets, a colour picker, and the ink on top
+  of it worked out rather than guessed. See §9.
+- Everything is blocks — one radius scale, filled surfaces, the platform's own
+  UI font, and the mono kept for the two places the characters matter: a request
+  title and code.
+- 84 checks (21 added). The window-fitting itself needs a browser.
 
 ### 1.2.1 — 2026-09-10 — quick mode stays open
 

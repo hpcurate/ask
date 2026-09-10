@@ -12,9 +12,20 @@
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/ask.css">
 <script>
-  /* before the first paint, so a chosen theme never flashes the default */
-  try { var t = JSON.parse(localStorage.getItem('ask_prefs_v1') || '{}').theme;
-        if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+  /* before the first paint, so a chosen theme or accent never flashes the
+     default. The same two lines app.js runs later — duplicated on purpose:
+     anything that reads a preference after the first paint is a flash. */
+  try {
+    var p = JSON.parse(localStorage.getItem('ask_prefs_v1') || '{}');
+    if (p.theme) document.documentElement.setAttribute('data-theme', p.theme);
+    if (p.accent) {
+      document.documentElement.style.setProperty('--y', p.accent);
+      var h = p.accent.replace('#', ''), n = parseInt(h.length === 3
+        ? h.split('').map(function (c) { return c + c; }).join('') : h, 16);
+      var l = (((n >> 16 & 255) * 299 + (n >> 8 & 255) * 587 + (n & 255) * 114) / 1000);
+      document.documentElement.style.setProperty('--on-y', l > 150 ? '#0e0e0e' : '#ffffff');
+    }
+  } catch (e) {}
 </script>
 </head>
 <body>
@@ -84,7 +95,6 @@
     </div>
 
     <button class="btn" id="a-add">add to the queue</button>
-    <button class="btn btn-2" id="a-quick" hidden>quick add →</button>
     <button class="btn btn-2" id="a-clear">clear the form</button>
   </section>
 
@@ -110,6 +120,19 @@
     <div id="h-list"></div>
   </section>
 
+</div>
+
+<!-- QUICK ───────────────────────────────────────────────────────────────
+     One question at a time, and when quick mode is on this *is* the write
+     screen — not an overlay over it. It sits between the band and the pill and
+     fits itself to the window, so the answers are always all on screen. It
+     writes the same draft the long form does and files through the same
+     Store.add: one definition of a request, not two. -->
+<div class="q-wrap" id="q-wrap" aria-label="quick add">
+  <div class="q-dots" id="q-dots"></div>
+  <div class="q-ask" id="q-ask"></div>
+  <div class="q-body" id="q-step"></div>
+  <div class="q-hint" id="q-hint"></div>
 </div>
 
 <nav id="nav">
@@ -177,12 +200,13 @@
 
   <div class="sec"><span>Quick mode</span></div>
   <div class="note">
-    One field at a time instead of the whole form: the request, then its kind,
-    then where it goes — each asked on its own, each answered with a key, and
-    each moving on the moment it is answered.
+    One question at a time instead of the whole form — the request, then its
+    kind, then where it goes. Each is answered with a key and moves on by
+    itself, and filing one asks the first question again, so a run of requests
+    is a run of answers. <b>Escape</b> starts the current one over.
   </div>
   <div class="row">
-    <span class="row-l">Ask one thing at a time<small>puts a <b>quick add</b> button on the write screen — it keeps asking until Escape</small></span>
+    <span class="row-l">Ask one thing at a time<small>replaces the write screen for as long as it is on</small></span>
     <button class="key-cap" id="set-quick">off</button>
   </div>
 
@@ -196,14 +220,26 @@
   <div id="set-keys"></div>
 
   <div class="sec"><span>Look</span></div>
+  <div class="note">The theme sets the surfaces; the accent is yours.</div>
   <div class="f">
     <label class="lbl">Theme</label>
-    <div class="chips" id="set-theme">
+    <div class="chips swatches" id="set-theme">
       <button class="chip" data-val="void">void</button>
       <button class="chip" data-val="ember">ember</button>
       <button class="chip" data-val="paper">paper</button>
       <button class="chip" data-val="noir">noir</button>
     </div>
+  </div>
+  <div class="f">
+    <label class="lbl">Accent <em>every lit thing in the app</em></label>
+    <div class="acc" id="set-accent"></div>
+  </div>
+  <div class="row">
+    <span class="row-l">A colour of your own<small id="set-accent-now">the theme's own accent</small></span>
+    <span class="acc-pick">
+      <input type="color" id="set-accent-custom" value="#a78bfa" aria-label="custom accent">
+      <button class="mini" id="set-accent-reset">reset</button>
+    </span>
   </div>
 
   <div class="sec"><span>Data</span></div>
@@ -216,16 +252,6 @@
     <button class="mini" id="set-import">import .md</button>
   </div>
   <input type="file" id="set-file" accept="text/markdown,.md,.txt" style="display:none">
-</div>
-
-<!-- QUICK ───────────────────────────────────────────────────────────────
-     One field at a time, asked in order. Not a second form: it writes the same
-     draft object the long form does and hands it to the same Store.add. -->
-<div class="q-back" id="q-back"></div>
-<div class="q-wrap" id="q-wrap" role="dialog" aria-modal="true" aria-label="quick add">
-  <div class="q-dots" id="q-dots"></div>
-  <div class="q-step" id="q-step"></div>
-  <div class="q-hint" id="q-hint"></div>
 </div>
 
 <!-- ASK ─────────────────────────────────────────────────────────────── -->

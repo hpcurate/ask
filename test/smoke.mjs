@@ -272,51 +272,82 @@ check('the rebind rows are drawn from the same list the keys come from',
   (() => { w.ASK.renderKeys(); return d.querySelectorAll('#set-keys .key-cap').length === 5; })(),
   String(d.querySelectorAll('#set-keys .key-cap').length));
 
-/* Quick mode — one field at a time, each answer advancing on its own.
-   The point of the checks is that it is not a second definition of a request:
-   it fills the same draft and files through the same Store.add. */
+/* Quick mode — one question at a time, and when it is on it *is* the write
+   screen. The checks are that it replaces the form rather than covering it,
+   that it fills the same draft and files through the same Store.add, and that
+   a run of requests never leaves it. */
 {
   unfocus();
+  w.ASK.go('write');
   w.Store.set('quick', true);
   w.ASK.paintQuick();
-  check('the switch puts the quick button on the write screen', !$('#a-quick').hidden);
+  check('the toggle replaces the write screen instead of opening over it',
+    $('#q-wrap').classList.contains('on') && d.body.classList.contains('q-mode'),
+    $('#q-wrap').className + ' | ' + d.body.className);
+  check('… on the first question, with the field ready',
+    w.ASK.quickStep() === 0 && !!$('#q-in') && /what is it/i.test(w.ASK.quickAsk()),
+    w.ASK.quickAsk());
 
   const before = w.Store.queue().length;
-  w.ASK.quickStart();
-  check('it opens on the first question, with the field ready', w.ASK.quickStep() === 0 &&
-    !!$('#q-in') && /what is it/i.test($('#q-step').textContent),
-    $('#q-step').textContent.slice(0, 40));
-
   $('#q-in').value = 'asked one thing at a time';
   key('Enter', $('#q-in'));
   check('answering the text step moves straight on to the next question',
-    w.ASK.quickStep() === 1 && /what kind/i.test($('#q-step').textContent),
-    String(w.ASK.quickStep()));
+    w.ASK.quickStep() === 1 && /what kind/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
   check('… and a chips step is numbered, so one key answers it',
-    d.querySelectorAll('#q-step .q-opt').length === 5 &&
-    $('#q-step .q-opt .q-n').textContent === '1',
-    String(d.querySelectorAll('#q-step .q-opt').length));
+    d.querySelectorAll('#q-opts .q-opt').length === 5 &&
+    $('#q-opts .q-opt .q-n').textContent === '1',
+    String(d.querySelectorAll('#q-opts .q-opt').length));
 
   key('1');                                    // fix
   check('a digit picks and advances in one press', w.ASK.quickStep() === 2,
     String(w.ASK.quickStep()));
+  check('… and the long form behind it holds the same answer',
+    [...d.querySelectorAll('#a-type .chip.on')].map(c => c.dataset.val).join(',') === 'fix');
 
   /* the cursor keys and the act key are the other way through, and they are
      the same bindings the rest of the app uses */
   key('ArrowDown');
   check('the cursor keys move the highlight without answering',
-    w.ASK.quickStep() === 2 && d.querySelectorAll('#q-step .q-opt.on').length === 1);
-  key(' ');
-  check('… and the act key answers it', w.ASK.quickStep() === 3, String(w.ASK.quickStep()));
+    w.ASK.quickStep() === 2 && d.querySelectorAll('#q-opts .q-opt.on').length === 1 &&
+    d.querySelector('#q-opts .q-opt.on').dataset.i === '1',
+    d.querySelector('#q-opts .q-opt.on').dataset.i);
+  key('ArrowUp');
+  key('ArrowUp');
+  check('… and they wrap rather than stopping dead at the end',
+    d.querySelector('#q-opts .q-opt.on').dataset.i ===
+      String(d.querySelectorAll('#q-opts .q-opt').length - 1),
+    d.querySelector('#q-opts .q-opt.on').dataset.i);
+  key('1');                                    // project: the first one
 
+  /* Escape is not "out" any more, because there is nowhere out to go: it is
+     this request, from the top. */
+  key('Backspace');
+  check('backspace is the small undo — one question back',
+    w.ASK.quickStep() === 2 && /which project/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
   key('Escape');
-  check('Escape goes back a step rather than throwing the answers away',
-    w.ASK.quickStep() === 2, String(w.ASK.quickStep()));
+  check('Escape starts the request over at the first question',
+    w.ASK.quickStep() === 0 && /what is it/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
+  check('… and it is a fresh request, not the old one back',
+    $('#a-title').value === '' && $('#q-in').value === '' &&
+    d.querySelectorAll('#a-type .chip.on').length === 0,
+    JSON.stringify($('#a-title').value));
+  check('… and nothing was filed by starting over', w.Store.queue().length === before);
+
+  /* a whole one, by key */
+  $('#q-in').value = 'asked one thing at a time';
+  key('Enter', $('#q-in'));
+  key('1');                                    // fix
   key('1');                                    // project, first option
+  const tabs = [...d.querySelectorAll('#q-opts .q-opt')];
+  check('every tab in the list is offered as its own block',
+    w.ASK.quickStep() === 3 && tabs.length === w.Store.get('tabs').length,
+    tabs.length + '/' + w.Store.get('tabs').length);
+  check('… laid out in one column where there is no window to measure',
+    $('#q-opts').style.gridTemplateColumns === '1fr', $('#q-opts').style.gridTemplateColumns);
   key('1');                                    // tab
   key('1');                                    // priority
   check('the last question is the optional note', w.ASK.quickStep() === 5 &&
-    /anything else/i.test($('#q-step').textContent), String(w.ASK.quickStep()));
+    /anything else/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
 
   $('#q-in').value = '';
   key('Enter', $('#q-in'));
@@ -331,45 +362,95 @@ check('the rebind rows are drawn from the same list the keys come from',
   check('… on an empty field, so the next one is typed straight in',
     !!$('#q-in') && $('#q-in').value === '' && $('#a-title').value === '',
     $('#q-in') ? JSON.stringify($('#q-in').value) : 'no field');
-  check('… and the hint says how many landed and how to leave',
-    /1 queued in a row/.test($('#q-hint').textContent) &&
-    /escape leaves/i.test($('#q-hint').textContent), $('#q-hint').textContent);
+  check('… and the first question carries the count of the run so far',
+    /1 queued in a row/.test($('#q-hint').textContent), $('#q-hint').textContent);
 
-  /* the whole point: a second one without touching the button again */
+  /* the whole point: a second one without leaving and coming back */
   $('#q-in').value = 'and the one behind it';
   key('Enter', $('#q-in'));
   key('1'); key('1'); key('1'); key('1');       // kind, project, area, priority
   $('#q-in').value = '';
   key('Enter', $('#q-in'));
-  check('a run files as many as it is answered, never reopened in between',
+  check('a run files as many as it is answered, without ever being reopened',
     w.Store.queue().length === before + 2 && w.ASK.quickDone() === 2 &&
     w.Store.queue()[w.Store.queue().length - 1].title === 'and the one behind it',
     before + ' → ' + w.Store.queue().length);
 
-  key('Escape');
-  check('Escape on the first question is the way out of the run',
-    w.ASK.quickStep() === -1, String(w.ASK.quickStep()));
-
-  /* "other" has nowhere to type a name in the flow, so it hands over rather
-     than inventing a step */
-  w.ASK.quickStart();
+  /* "other" grows the flow a question rather than handing back to a form that
+     is not on screen any more */
   $('#q-in').value = 'needs a project name';
   key('Enter', $('#q-in'));
   key('1');
-  const projOpts = [...d.querySelectorAll('#q-step .q-opt')].map(b => b.dataset.q);
+  const projOpts = [...d.querySelectorAll('#q-opts .q-opt')].map(b => b.dataset.q);
   const otherAt = projOpts.indexOf('other');
   check('the project step offers every project the settings list holds',
-    otherAt >= 0, projOpts.join(','));
+    otherAt >= 0 && projOpts.length === w.Store.get('projects').length, projOpts.join(','));
   key(String(otherAt + 1));
-  check('picking "other" hands back to the long form instead of guessing',
-    w.ASK.quickStep() === -1 && $('#s-write').classList.contains('on') &&
-    $('#a-title').value === 'needs a project name',
-    $('#a-title').value);
+  check('picking "other" asks for the name in the flow rather than handing back',
+    /name the project/i.test(w.ASK.quickAsk()) && !!$('#q-in') &&
+    $('#q-wrap').classList.contains('on'), w.ASK.quickAsk());
+  $('#q-in').value = 'brand new repo';
+  key('Enter', $('#q-in'));
+  check('… and answering it carries on to the area, one question later',
+    /which area/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
+  key('1'); key('1');                           // area, priority
+  $('#q-in').value = '';
+  key('Enter', $('#q-in'));
+  const other = w.Store.queue()[w.Store.queue().length - 1];
+  check('a project typed into the flow is filed like any other',
+    other.project === 'brand new repo' && other.title === 'needs a project name',
+    JSON.stringify(other));
+
+  /* an edit is a whole request at once, which is what quick mode is not — so
+     it borrows the long form back for as long as it lasts */
+  w.ASK.go('queue');
+  click($('#q-list [data-edit]'));
+  check('editing a queued request puts the long form back',
+    $('#s-write').classList.contains('on') && !d.body.classList.contains('q-mode') &&
+    !$('#q-wrap').classList.contains('on'), d.body.className);
+  click($('#a-add'));
+  check('… and saving it hands the screen back to quick mode',
+    d.body.classList.contains('q-mode') && $('#q-wrap').classList.contains('on'),
+    d.body.className);
 
   w.Store.set('quick', false);
   w.ASK.paintQuick();
-  check('turning it off takes the button away again', $('#a-quick').hidden);
+  check('turning it off gives the long form back',
+    !$('#q-wrap').classList.contains('on') && !d.body.classList.contains('q-mode') &&
+    $('#s-write').classList.contains('on'), d.body.className);
   unfocus();
+}
+
+/* The accent. One property carries it, and everything lit in the app is mixed
+   from that property rather than from a colour of its own. */
+{
+  w.ASK.setAccent('#3b82f6');
+  check('a custom accent is written onto the root as --y',
+    d.documentElement.style.getPropertyValue('--y') === '#3b82f6',
+    d.documentElement.style.getPropertyValue('--y'));
+  check('… and the ink on top of it is worked out, not stored',
+    d.documentElement.style.getPropertyValue('--on-y') === '#ffffff',
+    d.documentElement.style.getPropertyValue('--on-y'));
+  w.ASK.setAccent('#facc15');
+  check('a bright accent takes dark ink instead',
+    d.documentElement.style.getPropertyValue('--on-y') === '#0e0e0e',
+    d.documentElement.style.getPropertyValue('--on-y'));
+  check('the choice is kept the way the theme is', w.Store.get('accent') === '#facc15');
+  check('… and it is in the export, so it travels with everything else',
+    /facc15/.test(w.Store.exportText()));
+  w.ASK.renderAccents();
+  check('the picker offers the theme\'s own alongside the presets',
+    d.querySelectorAll('#set-accent .acc-dot').length === 11 &&
+    d.querySelectorAll('#set-accent .acc-dot.on').length === 1,
+    String(d.querySelectorAll('#set-accent .acc-dot').length));
+  w.ASK.setAccent('');
+  check('reset hands the colour back to the theme',
+    !d.documentElement.style.getPropertyValue('--y') &&
+    !d.documentElement.style.getPropertyValue('--on-y') && w.Store.get('accent') === '',
+    JSON.stringify(d.documentElement.getAttribute('style')));
+  check('… and the page applies a saved accent before the first paint',
+    /--y[\s\S]*prefs_v1|prefs_v1[\s\S]*--y/.test(
+      fs.readFileSync(path.join(APP, 'index.html'), 'utf8')));
 }
 
 check('still no errors after all of that', errors.length === 0, errors.slice(0, 3).join(' | '));

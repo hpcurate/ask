@@ -28,8 +28,14 @@ window.Store = (function () {
     keys: { left:'a', right:'u', up:'.', down:'e', act:' ' },
     /* Ask one field at a time instead of showing the whole form. Off by
        default: the long form is the one that shows you everything at once, and
-       that is the right first impression. */
+       that is the right first impression. On, it replaces the write screen for
+       as long as it is on — it is a mode, not a detour. */
     quick: false,
+    /* An accent of your own, as `#rrggbb`. Empty means the theme's, which is
+       the only reason this is a string and not a colour: "none chosen" and
+       "chose the same colour the theme had" are different states, and only the
+       first one follows the theme when the theme changes. */
+    accent: '',
   };
 
   const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };

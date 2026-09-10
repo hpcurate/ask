@@ -3,7 +3,11 @@
    a shared stylesheet across repos is a dependency neither of them wants. The
    names are the contract, so anything written against ROOT's tokens reads the
    same here. Four themes instead of fifteen — this app is a form, not a place
-   you live. */
+   you live.
+
+   The shapes are blocks: one radius scale, one surface per depth, no gradients
+   and no shadows except on the floating chrome. Everything is a rounded
+   rectangle you can hit with a thumb, which is the whole look. */
 
 :root{
   /* Palette — VOID, ROOT's default */
@@ -17,6 +21,10 @@
   --tx-2:#9a9a9a;
   --mu:#4a4a4a;
 
+  /* The accent. A custom one is written onto <html> as an inline --y, which is
+     why everything below is mixed *from* var(--y) rather than hardcoded: one
+     override repaints the app. --on-y is what sits on top of a filled block,
+     and is set alongside it. */
   --y:#A78BFA;
   --yd:color-mix(in srgb, var(--y) 13%, transparent);
   --yb:color-mix(in srgb, var(--y) 26%, transparent);
@@ -34,12 +42,19 @@
 
   --mono:'JetBrains Mono','Courier New',monospace;
   --head:'Syne',sans-serif;
+  /* The interface font is the platform's own. A form you fill in on a phone
+     should read like the phone; the mono is kept for the two places where the
+     characters themselves matter — a request title, which is a verbatim
+     record, and code. */
+  --ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI Variable Text',
+       'Segoe UI',system-ui,'Helvetica Neue',sans-serif;
 
-  --r-base:4px;
-  --r1:calc(var(--r-base) * .75);
-  --r2:var(--r-base);
-  --r3:calc(var(--r-base) * 1.75);
-  --r-sheet:calc(var(--r-base) * 2.5);
+  /* Blocks. One scale, everything on it. */
+  --r-base:12px;
+  --r1:calc(var(--r-base) * .66);   /* badges, key caps */
+  --r2:var(--r-base);               /* inputs, chips */
+  --r3:calc(var(--r-base) * 1.34);  /* cards, tiles, buttons */
+  --r-sheet:calc(var(--r-base) * 2);
   --r-pill:999px;
   --bw:1px;
 
@@ -48,7 +63,8 @@
   --caps:uppercase;
 
   --sat:calc(env(safe-area-inset-top) + 6px);
-  --nav-fh:58px;
+  --nav-fh:62px;
+  --band-h:96px;                    /* measured at runtime; this is the guess */
   --frame-w:460px;
   --frame-h:900px;
   --readable:720px;
