@@ -670,6 +670,70 @@ check('the rebind rows are drawn from the same list the keys come from',
   w.ASK.render();
 }
 
+
+/* 1.4.1 — the window ASK opens in, and the flow it opens on.
+   A key filled the form in and then handed over the long form whatever the
+   setting said, and the app was laid out for one width. */
+{
+  const askCss141 = fs.readFileSync(path.join(APP, 'css/ask.css'), 'utf8');
+  const link141 = q => { w.history.replaceState(null, '', '/ask/index.html?' + q); return w.ASK.fromLink(); };
+
+  w.Store.set('quick', true);
+  w.ASK.go('write');
+  click($('#a-clear'));
+  link141('type=fix&project=root&tab=do&prio=2');
+  check('a link no longer switches quick mode off',
+    $('#q-wrap').classList.contains('on') && w.ASK.linked() === true,
+    $('#q-wrap').className);
+  /* A key knows its project and its kind; it does not know what you want to
+     say. So the flow opens on the request line, with the answered steps behind
+     it rather than asked again. */
+  check('… it opens on the first question the link did not answer',
+    /what is it/i.test(w.ASK.quickAsk()) && w.ASK.quickStep() === 0,
+    w.ASK.quickAsk() + ' @ ' + w.ASK.quickStep());
+  $('#q-in').value = 'from the deck';
+  key('Enter', $('#q-in'));
+  check('… and answering it carries straight on past what the link filled in',
+    /anything else|how urgent/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
+
+  /* A link that names the request too has nothing left to ask but the note. */
+  w.ASK.quickReset();
+  click($('#a-clear'));
+  link141('title=already+said&type=fix&project=root&tab=do&prio=1');
+  check('a link that answers everything opens on the last question',
+    /anything else/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
+  $('#q-in').value = '';
+  key('Enter', $('#q-in'));
+  const fromDeck = w.Store.queue()[w.Store.queue().length - 1];
+  check('… and filing it keeps every answer the link carried',
+    fromDeck.title === 'already said' && fromDeck.type === 'fix' &&
+    fromDeck.project === 'root' && fromDeck.tab === 'do' && fromDeck.prio === 1,
+    JSON.stringify(fromDeck));
+  check('… and the flow is back to a whole request after it, not still linked',
+    w.ASK.linked() === false && $('#q-wrap').classList.contains('on'),
+    String(w.ASK.linked()));
+  w.Store.set('quick', false);
+  w.ASK.paintQuick();
+  w.Store.clearQueue();
+  w.ASK.render();
+
+  /* And the layout, against the window rather than against one guess. */
+  check('the gutter is one token the band and the scroller share',
+    /--gut:clamp\(/.test(askCss141) &&
+    /#band\{padding:[^}]*var\(--gut\)/.test(askCss141) &&
+    /#body\{padding-left:var\(--gut\);padding-right:var\(--gut\)/.test(askCss141));
+  check('the wordmark and its count shrink together, and the count stops reserving width',
+    /\.b-logo\{font-size:clamp\(/.test(askCss141) &&
+    /\.b-count\{font-size:clamp\([^}]*min-width:0\}/.test(askCss141));
+  check('the pill stops assuming 110px of margin it may not have',
+    /#nav\{width:min\(310px, calc\(100vw - clamp\(/.test(askCss141));
+  check('a sheet is measured against the window as well as the frame',
+    /\.sheet\{max-width:min\(calc\(var\(--frame-w\) - 60px\), calc\(100vw - 24px\)\)\}/.test(askCss141));
+  check('and nothing is allowed to push the page sideways',
+    /body,#body,#body > \.scr\{max-width:100%\}/.test(askCss141) &&
+    /overflow-wrap:anywhere/.test(askCss141));
+}
+
 check('still no errors after all of that', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 console.log(out.join('\n'));

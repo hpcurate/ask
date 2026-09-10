@@ -393,3 +393,72 @@ body.q-mode #s-write{display:none}
 [data-caps="off"]{--caps:none}
 
 [data-motion="off"] *{transition:none!important;animation:none!important}
+
+
+/* ── Scaling down ────────────────────────────────────────────────────────────
+   ASK was laid out for one width. Under 560 it fills the window, which is the
+   right idea, but everything inside it was a fixed pixel — an 18px gutter, a
+   34px wordmark, a 310px pill — so a window dragged narrow ran the wordmark
+   into the count, squeezed the gutters to nothing useful and pushed the pill
+   past its own edge. That is what "the content doesn't scale well when resizing
+   the window" was.
+
+   Everything below is the same layout expressed against the viewport instead of
+   against one guess. `clamp` rather than a media query, because there is no
+   single width where the app becomes a different app — it is the same app,
+   smaller. The upper bound of every clamp is the number that was already there,
+   so at a comfortable width nothing has moved. */
+
+:root{
+  /* One gutter, read by the band, the scroller and the sheets, so they cannot
+     drift apart at a width nobody tested. */
+  --gut:clamp(11px, 4vw, 18px);
+}
+
+#band{padding:calc(var(--sat) + clamp(9px, 3.4vw, 14px)) var(--gut) clamp(9px, 3vw, 12px);
+  gap:clamp(5px, 2vw, 8px)}
+.b-label{font-size:clamp(9.5px, 2.8vw, 11px)}
+.b-set{font-size:clamp(9.5px, 2.8vw, 11px)}
+/* The wordmark and the count share a row and are the two things that collide
+   first, so they shrink together and the count is allowed to give up its
+   reserved width. */
+.b-logo{font-size:clamp(22px, 8.4vw, 34px)}
+.b-count{font-size:clamp(20px, 7.4vw, 30px);min-width:0}
+
+#body{padding-left:var(--gut);padding-right:var(--gut);
+  padding-bottom:calc(var(--nav-fh) + clamp(24px, 8vw, 34px) + env(safe-area-inset-bottom))}
+
+/* The pill. Its floor was 110px of margin either side of a 310px bar, which at
+   360px leaves 250px for three targets and at 300px leaves nothing. */
+#nav{width:min(310px, calc(100vw - clamp(28px, 16vw, 110px)))}
+@media (max-width:559px){ #nav{width:min(310px, calc(100vw - clamp(28px, 16vw, 110px)))} }
+
+/* Type, against the same idea. Each upper bound is what the rule already said. */
+.sec{font-size:clamp(9.5px, 2.9vw, 11px)}
+.note{font-size:clamp(11px, 3.2vw, 12.5px)}
+.lbl{font-size:clamp(10px, 3vw, 11.5px)}
+.chip{font-size:clamp(11px, 3.2vw, 12.5px);
+  padding:clamp(7px, 2.4vw, 9px) clamp(9px, 3.2vw, 13px)}
+.btn{font-size:clamp(12px, 3.6vw, 14px)}
+.card{padding:clamp(11px, 3.6vw, 14px)}
+.c-title{font-size:clamp(12px, 3.6vw, 13.5px)}
+.fchip{font-size:clamp(10px, 3vw, 11px);
+  padding:clamp(5px, 2vw, 6px) clamp(8px, 3vw, 11px)}
+
+/* The sheets are the one thing that was already measured against the frame
+   rather than the window, and the frame is not the window under 560. */
+.sheet{max-width:min(calc(var(--frame-w) - 60px), calc(100vw - 24px))}
+
+/* Nothing may push the page sideways. A request title is arbitrary text and is
+   the most likely thing to try. */
+body,#body,#body > .scr{max-width:100%}
+.c-title,.c-notes,.q-ask,.note{overflow-wrap:anywhere}
+
+/* Very short windows. The quick view already measures itself and falls back to
+   scrolling; the band is what has to give first, because it is fixed and every
+   pixel it takes is one the answers cannot have. */
+@media (max-height:620px){
+  #band{padding-top:calc(var(--sat) + 8px);padding-bottom:8px;gap:4px}
+  .b-logo{font-size:clamp(20px, 6.4vw, 26px)}
+  .b-count{font-size:clamp(18px, 5.6vw, 23px)}
+}

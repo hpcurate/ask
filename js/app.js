@@ -615,11 +615,15 @@
   /* Editing a queued request is the one thing that puts the long form back for
      a moment: an edit is a whole request at once, which is exactly what quick
      mode is not. */
-  /* Quick mode is put away while a whole request is on the form at once —
-     while one is being edited, and while one arrived in the address. Both are
-     the same case: a request answered one question at a time is the thing quick
-     mode is for, and neither of these is one. */
-  const quickOn = () => !!Store.get('quick') && !editing && !linkMode;
+  /* Quick mode is put away only while a request is being **edited** — an edit is
+     a whole request at once, which is exactly what quick mode is not.
+     A request that arrived in the address is a different case and used to be
+     lumped in with it, which is what "ask one thing at a time doesn't apply when
+     using the stream deck" was: the key filled the form in and then handed over
+     the long form, ignoring the setting. A link is answers, not a form — so the
+     flow keeps the screen and starts at the first question the link left
+     unanswered. See linkStart(). */
+  const quickOn = () => !!Store.get('quick') && !editing;
   const qOpen   = () => quickOn() && scr === 'write' && !sheetOpen();
 
   /* The view is pinned between the band and the pill, and the band's height
@@ -769,7 +773,11 @@
        shrinks it again, so where "next" is depends on the answer just given. */
     const list = qSteps();
     if (qAt >= list.length - 1) { quickFile(); return; }
-    qAt++; qPick = 0;
+    /* While a link is filling this request in, walk past the questions it has
+       already answered rather than asking them back. Backspace still steps into
+       them one at a time, so nothing is out of reach. */
+    qAt = linkMode ? linkStart(qAt + 1) : qAt + 1;
+    qPick = 0;
     drawQuick();
   }
 
@@ -783,6 +791,8 @@
        what is wrong. */
     if (!req) { qAt = 0; qPick = 0; drawQuick(); return; }
     Store.add(req);
+    /* The link filled in exactly one request; the next one is a blank one. */
+    linkMode = false;
     resetForm();
     render();
     qDone++;
@@ -796,9 +806,36 @@
      never filed. */
   function quickReset(say) {
     resetForm();
+    linkMode = false;
     qAt = 0; qPick = 0;
     drawQuick();
     if (say) toast('started over');
+  }
+  /* A question a link has already answered. `notes` is never one: it is the
+     last step and filing is what it does, so skipping it would file the request
+     without ever showing it. `prio` counts as answered only when it is not the
+     default, because p4 is also what an unanswered priority looks like. */
+  function answered(st) {
+    if (!st) return false;
+    if (st.k === 'title')   return !!$('#a-title').value.trim();
+    if (st.k === 'other')   return !!$('#a-project-other').value.trim();
+    if (st.k === 'type')    return !!draft.type;
+    if (st.k === 'project') return !!draft.project;
+    if (st.k === 'tab')     return !!draft.tab;
+    if (st.k === 'prio')    return !!draft.prio && draft.prio !== 4;
+    return false;
+  }
+  /* The next question this request has not answered, from `from` onwards. While
+     a link is filling the request in, the flow asks only what is left — a key
+     knows its project and its kind, and asking them back would make the setting
+     mean nothing, which is what "ask one thing at a time doesn't apply when
+     using the stream deck" was. It never runs past the last step: the last step
+     is the one that files. */
+  function linkStart(from) {
+    const list = qSteps();
+    let i = Math.max(0, from || 0);
+    while (i < list.length - 1 && answered(list[i])) i++;
+    return i;
   }
   function quickBack() {
     if (qAt <= 0) return;
@@ -1223,7 +1260,18 @@
                  /* fromLink fills the draft; paintForm is what puts it on the
                     screen. Boot calls the two in that order and so must anything
                     that arms a link after boot. */
-                 fromLink: () => { const hit = fromLink(); if (hit) { linkMode = true; paintForm(); } return hit; },
+                 fromLink: () => {
+                   const hit = fromLink();
+                   if (hit) {
+                     linkMode = true;
+                     paintForm();
+                     /* The flow is already on screen, so paintQuick will not
+                        redraw it — the question has to be asked again by hand. */
+                     if (quickOn()) { qAt = linkStart(0); qPick = 0; drawQuick(); }
+                   }
+                   return hit;
+                 },
+                 quickStartsAt: () => linkStart(0),
                  paintForm, readForm, linked: () => linkMode };
 
   document.documentElement.setAttribute('data-theme', Store.get('theme') || 'void');
@@ -1235,7 +1283,13 @@
      rather than competing with it. Quick mode is put away for one request when
      a link arrives — a whole request answered one question at a time is not
      what "here is the whole request" wants. */
-  if (fromLink()) { linkMode = true; go('write'); }
+  if (fromLink()) {
+    linkMode = true;
+    go('write');
+    /* Quick mode keeps the screen and opens on the first unanswered question;
+       the long form simply shows what the link filled in. */
+    if (quickOn()) { qAt = linkStart(0); qPick = 0; }
+  }
   paintForm();
   measureBand();
   paintQuick();

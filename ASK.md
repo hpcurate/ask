@@ -301,13 +301,39 @@ Two rules carry it, and both are about not filing twice:
 - **The query is taken off the address** with `replaceState`, so a reload comes
   back to the form and not to the link, and a back button cannot re-arm it.
 
-Quick mode is put away for that one request — a whole request handed over at once
-is exactly what quick mode is not — and comes back when it is queued or cleared.
-That is the same rule editing a queued request already followed.
+Quick mode is **not** put away for it. A link is answers, not a form, so as of
+1.4.1 the flow keeps the screen and asks only what is left: it opens on the first
+question the link did not answer — usually the request line, since a key knows
+its project and its kind and not what you want to say — and answering walks past
+anything else the link already filled in. Backspace steps into every one of them,
+`notes` is never skipped because it is the step that files, and `prio` counts as
+answered only when it is not p4, which is also what an unanswered priority looks
+like. Editing a queued request is the one thing that still borrows the long form
+back.
 
 ---
 
 ## Changelog
+
+### 1.4.1 — 2026-09-10 — one thing at a time still means one thing at a time
+
+- **A link no longer switches quick mode off.** 1.4.0 put a link and an edit in
+  the same box; that was right about an edit — a whole request handed over at
+  once — and wrong about a link, which is *answers*. The flow keeps the screen
+  and asks only what is left: it opens on the first question the link did not
+  answer, and answering walks past the rest rather than asking them back.
+  Backspace still reaches every one. See §11.
+- **The app fits a small window.** Everything inside was a fixed pixel — an 18px
+  gutter, a 34px wordmark, a pill assuming 110px of margin — so a narrow window
+  ran the wordmark into the count and pushed the pill past its own edge. One
+  gutter token, and `clamp` everywhere against the viewport rather than a media
+  query: there is no width where this becomes a different app. Every clamp's
+  upper bound is the number that was already there, so nothing has moved at a
+  comfortable width.
+- A Chromium `--app` window cannot be made non-resizable; what the request
+  needed was for it to arrive small and centred (todoist-deck v0.4.1) and for
+  this app to hold up when dragged smaller, which is the above.
+- 128 checks (11 added). The clamps are checked as rules, not as pixels.
 
 ### 1.4.0 — 2026-09-10 — icons in the pill, one filter over both lists, the shape is yours, and a key can open it filled in
 
