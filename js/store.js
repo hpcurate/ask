@@ -36,6 +36,30 @@ window.Store = (function () {
        "chose the same colour the theme had" are different states, and only the
        first one follows the theme when the theme changes. */
     accent: '',
+    /* ── the look, past the theme and the accent ────────────────────────────
+       ROOT's appearance dials, cut down to the handful a form actually has a
+       use for. Every one of them is either a data attribute or a custom
+       property on <html>, so a change is one write and no redraw — the same
+       rule the accent already follows.
+
+       `radius`, `border` and `density` are the three that reshape *everything*,
+       because everything here is a block; the rest each change one kind of
+       thing. None of them is stored per screen: an app that looks different
+       depending on where you are in it is two apps. */
+    density: 1,          // --dens, 0.85–1.2
+    radius:  12,         // --r-base in px, 0–22; 0 is a hard square
+    border:  1,          // --bw in px, 0–2
+    cards:   'outline',  // outline | fill | line — what a request card is made of
+    chips:   'block',    // block | pill
+    titleFont: 'mono',   // mono | ui — the request title's own face
+    caps:    true,       // small labels in capitals, ROOT's --caps
+    navLabels: false,    // words under the pill's icons as well as the icons
+    motion:  true,       // transitions at all
+    /* ── the queue and the sent list ────────────────────────────────────────
+       Which requests those two screens show. Not a per-screen setting — the
+       same filter reads both, because "everything about hub" is one question
+       and answering it differently on two screens would be a bug. */
+    filter: { project: '', type: '', q: '' },
   };
 
   const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };
@@ -47,6 +71,10 @@ window.Store = (function () {
      the map is merged rather than replaced — the same rule the rest of prefs
      follows one level up. */
   prefs.keys = Object.assign({}, DEFAULTS.keys, prefs.keys || {});
+  /* Same rule one level down: a stored filter written before a field existed
+     is missing it, and an undefined filter field is one that silently matches
+     nothing. */
+  prefs.filter = Object.assign({}, DEFAULTS.filter, prefs.filter || {});
 
   const save      = () => write(K_DATA, data);
   const savePrefs = () => write(K_PREFS, prefs);
@@ -116,7 +144,12 @@ ${JSON.stringify(body)}
   }
   function restore(body) {
     if (body.data) { data = { queue: body.data.queue || [], sent: body.data.sent || [] }; save(); }
-    if (body.prefs) { prefs = Object.assign({}, DEFAULTS, body.prefs); savePrefs(); }
+    if (body.prefs) {
+      prefs = Object.assign({}, DEFAULTS, body.prefs);
+      prefs.keys   = Object.assign({}, DEFAULTS.keys,   body.prefs.keys   || {});
+      prefs.filter = Object.assign({}, DEFAULTS.filter, body.prefs.filter || {});
+      savePrefs();
+    }
   }
   const size = () => (localStorage.getItem(K_DATA) || '').length + (localStorage.getItem(K_PREFS) || '').length;
 

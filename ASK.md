@@ -29,6 +29,12 @@ receipt, not a mirror.
 | **queue** | what has been written and not yet sent — editable, removable, and entirely local |
 | **sent** | what this device has filed, newest first, with a link back to each task |
 
+Both lists are read through **one** filter — a search, a project, a kind. One and
+not two: "everything about hub" is a single question, and a queue narrowed to hub
+beside a history showing everything is two answers to it. It says `n of m` while
+it is hiding anything, and the send button goes on counting the whole queue,
+because the whole queue is what it sends.
+
 The split between *write* and *queue* is the whole design: a request is worth
 writing down the moment you notice it, and worth **sending in a batch**, because
 one run of the update protocol is one version however many requests were in it.
@@ -78,7 +84,7 @@ This is the part that is not ASK's to invent. It belongs to
 | section | Inbox → **claude requests**, resolved by name and cached |
 | labels | `claude` **+ exactly one** of `fix` / `change` / `feature` / `idea` |
 | content | the title, **verbatim** |
-| description | `project: <project> \| tab: <tab>` |
+| description | `project: <project> \| tab: <tab>` — the tab is asked for, and sent, only when the project is **root**; every other project is one app and files under `other`, which is what the protocol reads a missing tab as anyway |
 | comment | the notes, if there are any |
 | priority | p1–p4 in the UI, inverted for the API (p1 is Todoist's 4) |
 
@@ -123,7 +129,7 @@ duplicates the task to save a note.
 | Key | Holds |
 | --- | --- |
 | `ask_v1` | `{ queue, sent }` — the sent list is capped at 200 |
-| `ask_prefs_v1` | theme and accent, default project and type, the project/tab lists, the key bindings, and whether quick mode is on |
+| `ask_prefs_v1` | theme and accent, the nine shape dials (§10), default project and type, the project/tab lists, the key bindings, whether quick mode is on, and the filter the two lists share |
 | `root_todoist_v1` | **ROOT's key, deliberately under ROOT's own name** — served from the same origin as ROOT, ASK needs nothing pasted in |
 
 The key is never in an export. `export .md` writes the queue, the history and
@@ -257,7 +263,79 @@ flash.
 
 ---
 
+## 10. The shape
+
+The theme sets the surfaces and the accent is one colour on top of them (§9);
+past those, nine dials say what shape the app is. Everything here is a block, so
+three of them reshape the whole thing: how much air a block gets (`--dens`), how
+hard its corners are (`--r-base`), and whether there is a line between two of
+them at all (`--bw`). The other six each change one kind of thing: what a request
+card is made of, whether chips are blocks or pills, the request title's own face,
+capitals on the small labels, the words under the pill's icons, and movement.
+
+Every one is a custom property or a data attribute on `<html>`, which is the same
+mechanism the accent uses and for the same reason: a change is one write and no
+redraw. The reader lands on the default for a dial the store has never heard of,
+which is exactly what an install upgrading into 1.4 is until its first write.
+
+None of them is stored per screen. An app that looks different depending on where
+you are in it is two apps.
+
+## 11. Arriving with the request already written
+
+`?title=…&type=fix&project=root&tab=do&prio=2&notes=…` fills the write screen in.
+A Stream Deck key, a bookmark, a shortcut — anything that already knows what it
+wants can open ASK on a form that is filled in.
+
+Every field is optional, and an absent one is simply not set: **no type is a real
+answer**, the one the protocol reads as a change, so `type=` and no `type` at all
+are the same thing and neither is an error. A project the settings list has never
+heard of becomes `other` with the name typed in, because a new repo is a real
+request. Values this build does not have are dropped and the rest still lands —
+the link is a convenience, and the form is still the form.
+
+Two rules carry it, and both are about not filing twice:
+
+- **It fills the form; it does not file anything.** A link that queued on its own
+  would file a request every time the page was reloaded or restored.
+- **The query is taken off the address** with `replaceState`, so a reload comes
+  back to the form and not to the link, and a back button cannot re-arm it.
+
+Quick mode is put away for that one request — a whole request handed over at once
+is exactly what quick mode is not — and comes back when it is queued or cleared.
+That is the same rule editing a queued request already followed.
+
+---
+
 ## Changelog
+
+### 1.4.0 — 2026-09-10 — icons in the pill, one filter over both lists, the shape is yours, and a key can open it filled in
+
+- The pill is **icons**. Three names in a 310px bar is most of a phone's width
+  spent saying what the shapes already say; the words come back under them from
+  settings. The queue's glyph **becomes** its count the moment there is one,
+  rather than carrying a badge over it.
+- **`tab:` is ROOT's alone.** Every other project is one app, so the field is
+  hidden as a whole and the request files under `other` — which is what the
+  protocol already reads a missing tab as. Quick mode skips the question by the
+  same test, so the two cannot drift. See §3.
+- **One filter, read by the queue and the sent list alike** — a search, the
+  projects actually in the list, and the four kinds. Tapping the live chip lifts
+  it; an untyped request reads as a change here the way the protocol reads it;
+  the bar says `n of m` while it is hiding anything, because a receipt that hides
+  rows quietly is the one thing this must never be. The **send** button still
+  counts the whole queue, because that is what it sends.
+- **Nine shape dials** under a new *Shape* section: spacing, corners, hairlines,
+  what a request card is made of, chips as blocks or pills, the request title's
+  own face, capitals, words in the pill, and movement. Each is one property or
+  one attribute on `<html>`, so a change costs no redraw — the shape the accent
+  already had. See §10.
+- **A request can arrive in the address** — `?title=…&type=…&project=…&tab=…`.
+  It fills the form and files nothing, and the query is cleared off the address,
+  because the one thing this app must never do is file a request twice. See §11.
+  That is what todoist-deck v0.4.0 opens.
+- 117 checks (32 added). The window fitting, the icons' balance and all nine
+  shape dials still need eyes.
 
 ### 1.3.0 — 2026-09-10 — quick mode is a view, and the accent is yours
 

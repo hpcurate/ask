@@ -21,9 +21,17 @@
            + 'because closing it would throw the idea away.',
   };
 
+  /* ROOT is the only project with areas inside it; see paintForm. Read off the
+     draft rather than the stored default, because the field has to appear and
+     disappear as the project chips are tapped. */
+  const isRoot = () => (draft.project || Store.get('project') || 'root') === 'root';
+
   let scr = 'write';
   let draft = { type: '', project: '', tab: '', prio: 4 };
   let editing = null;              // the queued id being edited, if any
+  /* A request that arrived in the address. It borrows the long form back the
+     way an edit does, for exactly one request — see paintQuick. */
+  let linkMode = false;
   let sending = false;
 
   /* ── chrome ─────────────────────────────────────────────────────────── */
@@ -78,9 +86,15 @@
     const box = $('#b-count');
     box.textContent = String(n);
     box.classList.toggle('zero', !n);
+    /* The queue's glyph *becomes* its count. A badge over an icon is two
+       things fighting for the same 22px, and of the two the number is the one
+       worth having — an empty queue has nothing to say, so the icon stands. */
+    const qn = Store.queue().length;
     const tn = $('#t-n');
-    tn.textContent = String(Store.queue().length);
-    tn.hidden = !Store.queue().length;
+    tn.textContent = String(qn);
+    tn.hidden = !qn;
+    const qt = $('.tab[data-scr="queue"]');
+    if (qt) qt.classList.toggle('counting', !!qn);
   }
 
   /* ── chip groups ────────────────────────────────────────────────────── */
@@ -120,6 +134,11 @@
     $('#a-type-note').innerHTML = draft.type ? esc(TYPE_SAYS[draft.type]) : '';
     const other = $('#a-project-other');
     other.style.display = draft.project === 'other' ? 'block' : 'none';
+    /* `tab:` is the area inside ROOT. Every other project is one app, so there
+       is nothing for the field to name and thirteen chips of ROOT's vocabulary
+       under a hub request is a question with no right answer. The protocol
+       already reads a missing tab as `other`, which is what readForm sends. */
+    $('#a-tab-f').hidden = !isRoot();
     $('#a-add').textContent = editing ? 'save the change' : 'add to the queue';
     /* an edit borrows the long form back for as long as it lasts */
     paintQuick();
@@ -139,6 +158,64 @@
     paintForm();
   }
 
+
+  /* ── arriving with a request already half-written ─────────────────────
+     A Stream Deck key, a bookmark, a shortcut: anything that knows what it
+     wants can open ASK with the request in the address and land on a form that
+     is already filled in.
+
+         ?title=…&type=fix&project=root&tab=do&prio=2&notes=…
+
+     Every field is optional and an absent one simply is not set — "no type" is
+     a real answer here, the one the protocol reads as a change, so an absent
+     `type` and `type=` are the same thing and neither is an error.
+
+     It fills the form; it does not file anything. A link that queued on its own
+     would file a request every time the page was reloaded or restored, and the
+     one thing this app must never do is file the same request twice. The
+     query is cleared from the address for the same reason — a refresh comes
+     back to the form you were looking at, not to the link that opened it. */
+  function fromLink() {
+    let q;
+    try { q = new URLSearchParams(location.search); } catch { return false; }
+    const has = k => q.has(k) && String(q.get(k)).trim() !== '';
+    if (!['title','type','project','tab','prio','notes'].some(has)) return false;
+
+    const clean = (k, max) => String(q.get(k) || '').trim().slice(0, max);
+    const projects = Store.get('projects') || [];
+    const tabs = Store.get('tabs') || [];
+
+    if (has('project')) {
+      const p = clean('project', 40);
+      /* A project the settings list has never heard of is not refused — a new
+         repo is a real request, and `other` is exactly the answer for one. It
+         is typed into the other field so it reads as the deliberate choice it
+         is rather than silently becoming root. */
+      if (projects.includes(p)) draft.project = p;
+      else { draft.project = 'other'; $('#a-project-other').value = p; }
+    }
+    if (has('type')) {
+      const t = clean('type', 20);
+      if (['fix','change','feature','idea'].includes(t)) draft.type = t;
+    }
+    if (has('tab')) {
+      const t = clean('tab', 40);
+      if (tabs.includes(t)) draft.tab = t;
+    }
+    if (has('prio')) {
+      const n = parseInt(clean('prio', 2), 10);
+      if (n >= 1 && n <= 4) draft.prio = n;
+    }
+    if (has('title')) $('#a-title').value = clean('title', 2000);
+    if (has('notes')) $('#a-notes').value = clean('notes', 12000);
+
+    /* Off the query and out of the history, so a reload is a reload of the
+       form. replaceState rather than pushState: there is no state to go back
+       to, and a back button that re-armed the link would be the same trap. */
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch {}
+    return true;
+  }
+
   function readForm() {
     const title = $('#a-title').value.trim();
     if (!title) { toast('the request needs a title'); $('#a-title').focus(); return null; }
@@ -150,7 +227,9 @@
     /* No type is not an error: the protocol reads a missing type label as a
        change. Saying so beats a validation message. */
     return { title, type: draft.type || '', project,
-             tab: draft.tab || 'other', prio: draft.prio || 4,
+             /* only ROOT has areas — anything else files under `other`, which
+                is what the protocol reads a missing tab as anyway */
+             tab: (project === 'root' && draft.tab) || 'other', prio: draft.prio || 4,
              notes: $('#a-notes').value.trim() };
   }
 
@@ -159,13 +238,99 @@
     if (!req) return;
     if (editing) { Store.update(editing, req); toast('changed'); }
     else { Store.add(req); toast(req.type ? 'queued' : 'queued — no type, so it reads as a change'); }
+    /* The link filled in exactly one request. Once it is queued the form is a
+       blank form again, so quick mode — if it was on — comes back. */
+    linkMode = false;
     resetForm();
     render();
     if (editing === null && scr === 'write') { /* stay put: the next one is usually right behind */ }
   };
-  $('#a-clear').onclick = () => { resetForm(); toast('cleared'); };
+  $('#a-clear').onclick = () => { linkMode = false; resetForm(); toast('cleared'); };
 
   /* ── the queue and the history ──────────────────────────────────────── */
+
+
+  /* ── the filter ──────────────────────────────────────────────────────
+     One filter, read by both the queue and the sent list. Not one per screen:
+     "everything about hub" is one question, and a queue narrowed to hub beside
+     a history showing everything is two answers to it.
+
+     It is stored, because the reason to narrow a list is usually the reason
+     you came back to it. It is also *visible* when it is on — a list quietly
+     hiding rows is the one thing a receipt must never do — which is what the
+     count on the bar is for. */
+  const filter = () => Store.get('filter') || { project:'', type:'', q:'' };
+  function setFilter(patch) {
+    Store.set('filter', Object.assign({}, filter(), patch));
+    render();
+  }
+  const filterOn = () => { const f = filter(); return !!(f.project || f.type || f.q); };
+
+  function matches(r) {
+    const f = filter();
+    if (f.project && String(r.project || '') !== f.project) return false;
+    /* An untyped request reads as a change, here as everywhere else — the
+       protocol says so, so filtering for changes has to find it. */
+    if (f.type && (r.type || 'change') !== f.type) return false;
+    if (f.q) {
+      const hay = [r.title, r.notes, r.project, r.tab].join(' ').toLowerCase();
+      if (!hay.includes(f.q.toLowerCase())) return false;
+    }
+    return true;
+  }
+
+  /* The bar. The projects offered are the ones actually *in* the list being
+     filtered, not the settings list: a filter that offers a project with
+     nothing under it is a filter that can only ever empty the screen. */
+  function filterHTML(rows, total) {
+    const f = filter();
+    const projects = [...new Set(rows.map(r => r.project).filter(Boolean))].sort();
+    const types = ['fix', 'change', 'feature', 'idea'];
+    const chip = (kind, v, label, on) =>
+      `<button class="fchip${on ? ' on' : ''}"${kind === 'type' && v ? ` data-type="${esc(v)}"` : ''}
+               data-f="${kind}" data-v="${esc(v)}">${esc(label)}</button>`;
+    return `<div class="filter${filterOn() ? ' on' : ''}">
+      <div class="f-row">
+        <input type="search" class="f-q" value="${esc(f.q)}" placeholder="find a request"
+               spellcheck="false" aria-label="find a request">
+        ${filterOn() ? `<button class="mini" data-f="clear" data-v="">clear</button>` : ''}
+      </div>
+      ${projects.length > 1 ? `<div class="f-chips">
+        ${chip('project', '', 'every project', !f.project)}
+        ${projects.map(p => chip('project', p, p, f.project === p)).join('')}
+      </div>` : ''}
+      <div class="f-chips">
+        ${chip('type', '', 'every kind', !f.type)}
+        ${types.map(t => chip('type', t, t, f.type === t)).join('')}
+      </div>
+      ${filterOn() ? `<div class="f-count">${rows.filter(matches).length} of ${total}</div>` : ''}
+    </div>`;
+  }
+
+  /* One delegated listener for both bars, bound once — the bars themselves are
+     rewritten on every render, so a handler on the bar would be a handler
+     thrown away and re-added on every keystroke. */
+  ['#q-list-wrap', '#h-list-wrap'].forEach(sel => {
+    const box = $(sel); if (!box) return;
+    box.addEventListener('click', e => {
+      const b = e.target.closest('[data-f]'); if (!b) return;
+      const k = b.dataset.f;
+      if (k === 'clear') { setFilter({ project:'', type:'', q:'' }); return; }
+      /* Tapping the one that is already on turns it off: a filter you can only
+         change and never lift is one you clear by guessing. */
+      const cur = filter()[k];
+      setFilter({ [k]: cur === b.dataset.v ? '' : b.dataset.v });
+    });
+    box.addEventListener('input', e => {
+      if (!e.target.classList.contains('f-q')) return;
+      const at = e.target.selectionStart;
+      setFilter({ q: e.target.value });
+      /* render() rewrote the field, so the caret has to be put back — the
+         alternative is a search box that jumps to the end on every letter. */
+      const again = box.querySelector('.f-q');
+      if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch {} }
+    });
+  });
 
   function cardHTML(r, opts) {
     const type = r.type || 'change';
@@ -187,11 +352,18 @@
     </div>`;
   }
 
+  /* Both lists are drawn the same way: the bar, then whatever survives it. The
+     *send* button is deliberately not narrowed by the filter — it says how many
+     are queued, not how many are on screen, because sending files the queue and
+     a button that undercounted what it was about to do would be a trap. */
   function renderQueue() {
     const q = Store.queue();
-    $('#q-list').innerHTML = q.length
-      ? q.map(r => cardHTML(r, { acts: true })).join('')
-      : '<div class="empty">nothing queued.<br>write one on the first tab.</div>';
+    const show = q.filter(matches);
+    $('#q-list-wrap').innerHTML = filterHTML(q, q.length) + (q.length
+      ? (show.length
+          ? `<div id="q-list">${show.map(r => cardHTML(r, { acts: true })).join('')}</div>`
+          : '<div class="empty">nothing here matches.<br>clear the filter to see the rest.</div>')
+      : '<div id="q-list"></div><div class="empty">nothing queued.<br>write one on the first tab.</div>');
     const btn = $('#q-send');
     btn.disabled = !q.length || sending;
     btn.textContent = sending ? 'sending…'
@@ -201,13 +373,16 @@
 
   function renderSent() {
     const h = Store.sent();
-    $('#h-list').innerHTML = h.length
-      ? h.map(r => cardHTML(r, { acts: false })).join('')
-      : '<div class="empty">nothing sent from this device yet.</div>';
+    const show = h.filter(matches);
+    $('#h-list-wrap').innerHTML = filterHTML(h, h.length) + (h.length
+      ? (show.length
+          ? `<div id="h-list">${show.map(r => cardHTML(r, { acts: false })).join('')}</div>`
+          : '<div class="empty">nothing here matches.<br>clear the filter to see the rest.</div>')
+      : '<div class="empty">nothing sent from this device yet.</div>');
     $('#h-clear').hidden = !h.length;
   }
 
-  $('#q-list').addEventListener('click', e => {
+  $('#q-list-wrap').addEventListener('click', e => {
     const ed = e.target.closest('[data-edit]');
     const dl = e.target.closest('[data-del]');
     if (ed) {
@@ -294,6 +469,7 @@
     paintStatus(Store.token() ? 'key saved — test it to be sure' : 'no key yet', '');
     renderKeys();
     renderAccents();
+    renderLook();
     paintQuick();
     $('#set-back').classList.add('on');
     $('#set').classList.add('on');
@@ -413,7 +589,9 @@
        and there is nothing to hand back to now that it is the screen itself. */
     { k:'other', kind:'text', ask:'Name the project.', when: () => draft.project === 'other',
       hint:'the repo it belongs to, spelled as you would type it in the form' },
-    { k:'tab', kind:'chips', ask:'Which area?',
+    /* Only ROOT has areas inside it, so only a ROOT request is asked. The
+       long form hides the same field for the same reason — see paintForm. */
+    { k:'tab', kind:'chips', ask:'Which area?', when: () => isRoot(),
       opts: () => Store.get('tabs').map(t => [t, t]) },
     { k:'prio', kind:'chips', ask:'How urgent?',
       opts: () => [[1,'p1 · now'],[2,'p2'],[3,'p3'],[4,'p4 · whenever']] },
@@ -437,7 +615,11 @@
   /* Editing a queued request is the one thing that puts the long form back for
      a moment: an edit is a whole request at once, which is exactly what quick
      mode is not. */
-  const quickOn = () => !!Store.get('quick') && !editing;
+  /* Quick mode is put away while a whole request is on the form at once —
+     while one is being edited, and while one arrived in the address. Both are
+     the same case: a request answered one question at a time is the thing quick
+     mode is for, and neither of these is one. */
+  const quickOn = () => !!Store.get('quick') && !editing && !linkMode;
   const qOpen   = () => quickOn() && scr === 'write' && !sheetOpen();
 
   /* The view is pinned between the band and the pill, and the band's height
@@ -713,6 +895,119 @@
   $('#set-accent-custom').onchange = e => setAccent(e.target.value);
   $('#set-accent-reset').onclick   = () => setAccent('');
 
+
+  /* ── the look ────────────────────────────────────────────────────────
+     Every dial here is either a data attribute or a custom property on
+     <html>, so changing one is a single write and no redraw at all — the same
+     shape the accent already had, extended to the rest. That is why there is
+     no `renderLook()`: there is nothing to re-render.
+
+     `applyLook` is called at boot and after any change, and it is written to
+     be safe to call with a store that has never heard of these keys — an
+     install upgrading into 1.4 has exactly that store until the first write. */
+  const LOOK_RANGE = {
+    density: { min:0.85, max:1.2,  step:0.01, def:1  },
+    radius:  { min:0,    max:22,   step:1,    def:12 },
+    border:  { min:0,    max:2,    step:0.5,  def:1  },
+  };
+  const lookNum = k => {
+    const r = LOOK_RANGE[k];
+    const n = parseFloat(Store.get(k));
+    return isFinite(n) ? Math.min(r.max, Math.max(r.min, n)) : r.def;
+  };
+  function applyLook() {
+    const root = document.documentElement;
+    const st = root.style;
+    st.setProperty('--dens', String(lookNum('density')));
+    st.setProperty('--r-base', lookNum('radius') + 'px');
+    st.setProperty('--bw', lookNum('border') + 'px');
+    root.dataset.cards     = ['outline','fill','line'].includes(Store.get('cards')) ? Store.get('cards') : 'outline';
+    root.dataset.chips     = Store.get('chips') === 'pill' ? 'pill' : 'block';
+    root.dataset.titleFont = Store.get('titleFont') === 'ui' ? 'ui' : 'mono';
+    root.dataset.caps      = Store.get('caps') === false ? 'off' : 'on';
+    root.dataset.navLabels = Store.get('navLabels') ? 'on' : 'off';
+    root.dataset.motion    = Store.get('motion') === false ? 'off' : 'on';
+  }
+
+  /* One row per dial, and the readout is part of the label rather than a
+     number floating beside it — a slider whose value you have to hunt for is a
+     slider you set by feel and then leave alone. */
+  function lookRow(k, label, note, fmt) {
+    const r = LOOK_RANGE[k], v = lookNum(k);
+    return `<div class="slide-row" data-look="${k}">
+      <div class="slide-head">
+        <span class="row-l">${esc(label)}<small>${esc(note)}</small></span>
+        <span class="slide-v">${esc(fmt(v))}</span>
+      </div>
+      <input type="range" min="${r.min}" max="${r.max}" step="${r.step}" value="${v}"
+             aria-label="${esc(label)}">
+    </div>`;
+  }
+  const pickRow = (k, label, note, opts) => `<div class="f" data-pick="${k}">
+      <label class="lbl">${esc(label)}${note ? ` <em>${esc(note)}</em>` : ''}</label>
+      <div class="chips">${opts.map(([v, l]) =>
+        `<button class="chip${String(Store.get(k)) === v ? ' on' : ''}" data-val="${esc(v)}">${esc(l)}</button>`).join('')}</div>
+    </div>`;
+  const swRow = (k, label, note) => `<div class="row" data-sw="${k}">
+      <span class="row-l">${esc(label)}<small>${esc(note)}</small></span>
+      <button class="key-cap">${Store.get(k) === false ? 'off' : Store.get(k) ? 'on' : 'off'}</button>
+    </div>`;
+
+  function renderLook() {
+    const box = $('#set-look'); if (!box) return;
+    box.innerHTML =
+      lookRow('density', 'Spacing', 'how much air every block gets', v => Math.round(v * 100) + '%') +
+      lookRow('radius',  'Corners', '0 is a hard square; everything here is a block, so this is the whole shape',
+              v => Math.round(v) + 'px') +
+      lookRow('border',  'Hairlines', 'the line between two blocks — 0 lets the surfaces do it alone',
+              v => v + 'px') +
+      pickRow('cards', 'Request cards', 'what a queued or sent request is drawn as',
+              [['outline','outlined'], ['fill','filled'], ['line','a rule']]) +
+      pickRow('chips', 'Chips', 'the picker blocks', [['block','blocks'], ['pill','pills']]) +
+      pickRow('titleFont', 'Request title', 'the one place the characters themselves matter',
+              [['mono','mono'], ['ui','the interface font']]) +
+      swRow('caps', 'Small labels in capitals', 'the section heads and the field labels') +
+      swRow('navLabels', 'Words in the pill', 'the names under the icons as well as the icons') +
+      swRow('motion', 'Movement', 'every transition in the app at once');
+
+    box.querySelectorAll('[data-look] input').forEach(inp => {
+      const k = inp.closest('[data-look]').dataset.look;
+      /* Live while it moves, stored when it lands: a write and a re-render per
+         frame is what the other way costs, and the app is already repainted by
+         the property itself. */
+      inp.oninput = () => {
+        Store.set(k, parseFloat(inp.value));
+        applyLook();
+        const out = inp.closest('.slide-row').querySelector('.slide-v');
+        if (out) out.textContent = k === 'density' ? Math.round(parseFloat(inp.value) * 100) + '%'
+                                 : k === 'radius' ? Math.round(parseFloat(inp.value)) + 'px'
+                                 : inp.value + 'px';
+      };
+    });
+    box.querySelectorAll('[data-pick]').forEach(f => {
+      const k = f.dataset.pick;
+      f.addEventListener('click', e => {
+        const c = e.target.closest('.chip'); if (!c) return;
+        Store.set(k, c.dataset.val);
+        applyLook(); renderLook();
+      });
+    });
+    box.querySelectorAll('[data-sw]').forEach(r => {
+      const k = r.dataset.sw;
+      r.querySelector('.key-cap').onclick = () => {
+        Store.set(k, Store.get(k) === false ? true : !Store.get(k));
+        applyLook(); renderLook();
+      };
+    });
+  }
+
+  $('#set-look-reset').onclick = () => {
+    ['density','radius','border','cards','chips','titleFont','caps','navLabels','motion']
+      .forEach(k => Store.set(k, Store.DEFAULTS[k]));
+    applyLook(); renderLook();
+    toast('the look is back to default');
+  };
+
   /* ── the keyboard ────────────────────────────────────────────────────
      A roving cursor over the controls of the screen you are on. Two decisions
      carry the whole thing:
@@ -901,6 +1196,7 @@
   /* ── boot ───────────────────────────────────────────────────────────── */
 
   function render() { paintCount(); renderQueue(); renderSent(); }
+  applyLook();
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -922,12 +1218,25 @@
   window.ASK = { go, moveSel, clearSel, actOnSel, selected: () => sel, renderKeys,
                  quickKey, quickReset, quickStep: () => qAt, quickDone: () => qDone,
                  quickAsk: () => $('#q-ask').textContent, paintQuick,
-                 applyAccent, setAccent, renderAccents };
+                 applyAccent, setAccent, renderAccents,
+                 applyLook, renderLook, render, setFilter, filter: () => filter(),
+                 /* fromLink fills the draft; paintForm is what puts it on the
+                    screen. Boot calls the two in that order and so must anything
+                    that arms a link after boot. */
+                 fromLink: () => { const hit = fromLink(); if (hit) { linkMode = true; paintForm(); } return hit; },
+                 paintForm, readForm, linked: () => linkMode };
 
   document.documentElement.setAttribute('data-theme', Store.get('theme') || 'void');
   applyAccent(Store.get('accent'));
+  applyLook();
   renderLists();
   resetForm();
+  /* After resetForm, which is what a blank form is; a link fills that form in
+     rather than competing with it. Quick mode is put away for one request when
+     a link arrives — a whole request answered one question at a time is not
+     what "here is the whole request" wants. */
+  if (fromLink()) { linkMode = true; go('write'); }
+  paintForm();
   measureBand();
   paintQuick();
   render();

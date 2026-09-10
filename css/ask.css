@@ -183,10 +183,7 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:var(--r1)}
   transition:color .16s ease,background .16s ease}
 .tab.on{color:var(--on-y);background:var(--y)}
 .tab:not(.on):hover{color:var(--tx);background:var(--s3)}
-.tab .n{position:absolute;top:7px;right:calc(50% - 26px);
-  min-width:17px;height:17px;padding:0 5px;border-radius:var(--r-pill);
-  background:var(--y);color:var(--on-y);font:700 10px/17px var(--ui);text-align:center}
-.tab.on .n{background:var(--on-y);color:var(--y)}
+/* the count that replaces the queue's glyph — see the pill block at the end */
 
 /* Toast */
 #toast{position:fixed;z-index:120;left:50%;
@@ -318,3 +315,81 @@ body.q-mode #s-write{display:none}
   .scr.on{animation:none}
   #nav,.sheet,.sheet-back,#toast{transition:none}
 }
+
+
+/* ── the pill, as icons ──────────────────────────────────────────────────────
+   Three names in a 310px bar is most of a phone's width spent saying what the
+   shapes already say. The words are still there, under the icons, for anyone
+   who wants them — one switch in settings. */
+.tab{flex-direction:column;gap:calc(3px * var(--dens))}
+.t-ic{width:20px;height:20px;display:block;flex:0 0 auto}
+/* The queue's glyph becomes its count. Not a badge over the icon — that is two
+   things claiming the same 22px — but the number in the icon's place, in the
+   title face, because the number is the more useful of the two and an empty
+   queue has nothing to say. */
+.t-n{display:none;font:700 15px/20px var(--ui);font-variant-numeric:tabular-nums;
+  min-width:20px;height:20px;text-align:center}
+.tab.counting .t-ic{display:none}
+.tab.counting .t-n{display:block}
+.t-l{display:none;font:600 9px/1 var(--ui);letter-spacing:.06em;
+  text-transform:var(--caps);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+[data-nav-labels="on"] .t-l{display:block}
+
+/* ── the filter ──────────────────────────────────────────────────────────────
+   One bar, read by the queue and the sent list alike. It is quiet until it is
+   doing something: a list hiding rows without saying so is the one thing a
+   receipt must never do, so the bar lights and carries the count the moment it
+   is narrowing anything. */
+.filter{margin-bottom:calc(14px * var(--dens))}
+.f-row{display:flex;gap:calc(8px * var(--dens));align-items:center;
+  margin-bottom:calc(9px * var(--dens))}
+.f-q{flex:1 1 auto;min-width:0}
+.f-chips{display:flex;flex-wrap:wrap;gap:calc(6px * var(--dens));
+  margin-bottom:calc(7px * var(--dens))}
+.fchip{cursor:pointer;background:var(--s2);border:var(--bw) solid var(--bd);
+  border-radius:var(--r1);color:var(--tx-2);
+  padding:calc(6px * var(--dens)) calc(11px * var(--dens));
+  font:600 11px/1 var(--ui);
+  transition:color .16s ease,background .16s ease,border-color .16s ease}
+.fchip.on{background:var(--y);border-color:var(--y);color:var(--on-y)}
+/* a type chip wears its own Todoist colour while it is on, the way the form's
+   type chips do — a chip here and a label there are the same thing */
+.fchip.on[data-type="fix"]    {background:var(--t-fix);    border-color:var(--t-fix)}
+.fchip.on[data-type="change"] {background:var(--t-change); border-color:var(--t-change)}
+.fchip.on[data-type="feature"]{background:var(--t-feature);border-color:var(--t-feature)}
+.fchip.on[data-type="idea"]   {background:var(--t-idea);   border-color:var(--t-idea)}
+.fchip.on[data-type]{color:#0e0e0e}
+.f-count{font:600 11px/1 var(--ui);color:var(--y);
+  padding-top:calc(2px * var(--dens))}
+.filter.on{border-left:2px solid var(--y);padding-left:calc(11px * var(--dens))}
+
+/* ── the shape settings ──────────────────────────────────────────────────────
+   The readout is part of the label rather than a number floating beside it: a
+   slider whose value you have to hunt for is one you set by feel and leave. */
+.slide-row{margin-bottom:calc(15px * var(--dens))}
+.slide-head{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:calc(12px * var(--dens));margin-bottom:calc(8px * var(--dens))}
+.slide-v{flex:0 0 auto;font:700 13px/1.2 var(--ui);color:var(--y);
+  font-variant-numeric:tabular-nums}
+.slide-row input[type=range]{width:100%;accent-color:var(--y);height:22px}
+
+/* ── what the shape dials actually change ────────────────────────────────────
+   Three of them are custom properties and need no rules at all; these are the
+   four that are a choice rather than a number. */
+[data-cards="fill"] .card{background:var(--s2);border-color:transparent}
+[data-cards="line"] .card{background:none;border:none;border-radius:0;
+  border-top:var(--bw) solid var(--bd);
+  padding-left:0;padding-right:0}
+[data-cards="line"] .card:first-child{border-top:none}
+
+[data-chips="pill"] .chip,
+[data-chips="pill"] .fchip{border-radius:var(--r-pill)}
+
+/* The request title's own face. Mono by default because a title is a verbatim
+   record and the characters themselves matter; the interface font is there for
+   anyone who would rather read it as prose. */
+[data-title-font="ui"] .c-title{font-family:var(--ui)}
+
+[data-caps="off"]{--caps:none}
+
+[data-motion="off"] *{transition:none!important;animation:none!important}

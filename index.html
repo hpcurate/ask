@@ -73,8 +73,10 @@
              spellcheck="false" style="margin-top:9px;display:none">
     </div>
 
-    <div class="f">
-      <label class="lbl">Tab <em>the area inside the app</em></label>
+    <!-- Only ROOT has areas inside it. Hidden as a whole for every other
+         project rather than emptied, so there is no orphan label. -->
+    <div class="f" id="a-tab-f">
+      <label class="lbl">Tab <em>the area inside ROOT</em></label>
       <div class="chips" id="a-tab"></div>
     </div>
 
@@ -106,7 +108,8 @@
       <code>inbox › claude requests</code> with <code>@claude</code> and its type
       label, the project and tab in the description, and any notes as a comment.
     </div>
-    <div id="q-list"></div>
+    <!-- the filter bar and the list, both written by renderQueue() -->
+    <div id="q-list-wrap"></div>
     <button class="btn" id="q-send">send to todoist</button>
   </section>
 
@@ -117,7 +120,7 @@
       What this device has sent, newest first. The record is local — completing
       a task in Todoist does not remove it from here.
     </div>
-    <div id="h-list"></div>
+    <div id="h-list-wrap"></div>
   </section>
 
 </div>
@@ -135,10 +138,28 @@
   <div class="q-hint" id="q-hint"></div>
 </div>
 
+<!-- The pill. Icons rather than words since 1.4: three names in a 310px bar
+     is most of a phone's width spent saying what the shapes already say. The
+     queue's glyph is replaced by its *count* the moment there is one — a badge
+     over an icon is two things claiming the same 22px, and the number is the
+     more useful of the two. The words come back under the icons from settings. -->
 <nav id="nav">
-  <button class="tab on" data-scr="write">write</button>
-  <button class="tab" data-scr="queue">queue<span class="n" id="t-n" hidden>0</span></button>
-  <button class="tab" data-scr="sent">sent</button>
+  <button class="tab on" data-scr="write" aria-label="write">
+    <svg class="t-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4l5 5-10 10H5v-5z"/><path d="M13.5 6.5l4 4"/></svg>
+    <span class="t-l">write</span>
+  </button>
+  <button class="tab" data-scr="queue" aria-label="queue">
+    <svg class="t-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+    <span class="t-n" id="t-n" hidden>0</span>
+    <span class="t-l">queue</span>
+  </button>
+  <button class="tab" data-scr="sent" aria-label="sent">
+    <svg class="t-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>
+    <span class="t-l">sent</span>
+  </button>
 </nav>
 
 <div id="toast"></div>
@@ -241,6 +262,15 @@
       <button class="mini" id="set-accent-reset">reset</button>
     </span>
   </div>
+
+  <div class="sec"><span>Shape</span><button class="mini" id="set-look-reset">reset</button></div>
+  <div class="note">
+    Everything here is a block, so three of these reshape the whole app: how much
+    air a block gets, how hard its corners are, and whether there is a line
+    between two of them at all. Each one is a single property on the page — a
+    change costs no redraw.
+  </div>
+  <div id="set-look"></div>
 
   <div class="sec"><span>Data</span></div>
   <div class="row">

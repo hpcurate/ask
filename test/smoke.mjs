@@ -391,15 +391,20 @@ check('the rebind rows are drawn from the same list the keys come from',
     $('#q-wrap').classList.contains('on'), w.ASK.quickAsk());
   $('#q-in').value = 'brand new repo';
   key('Enter', $('#q-in'));
-  check('… and answering it carries on to the area, one question later',
-    /which area/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
-  key('1'); key('1');                           // area, priority
+  /* 1.4: `tab:` is the area inside ROOT, so only a ROOT request is asked for
+     one. A project typed into the flow is not ROOT, so the area question is
+     not there and the flow goes straight on to the priority. */
+  check('… and a project that is not ROOT is never asked which area of it',
+    /how urgent/i.test(w.ASK.quickAsk()), w.ASK.quickAsk());
+  key('1');                                     // priority
   $('#q-in').value = '';
   key('Enter', $('#q-in'));
   const other = w.Store.queue()[w.Store.queue().length - 1];
   check('a project typed into the flow is filed like any other',
     other.project === 'brand new repo' && other.title === 'needs a project name',
     JSON.stringify(other));
+  check('… and it files under the tab the protocol reads a missing one as',
+    other.tab === 'other', other.tab);
 
   /* an edit is a whole request at once, which is what quick mode is not — so
      it borrows the long form back for as long as it lasts */
@@ -451,6 +456,218 @@ check('the rebind rows are drawn from the same list the keys come from',
   check('… and the page applies a saved accent before the first paint',
     /--y[\s\S]*prefs_v1|prefs_v1[\s\S]*--y/.test(
       fs.readFileSync(path.join(APP, 'index.html'), 'utf8')));
+}
+
+
+/* 1.4 — the pill as icons, the area question narrowed to ROOT, a filter over
+   both lists, and the shape dials. */
+{
+  const askCss14 = fs.readFileSync(path.join(APP, 'css/ask.css'), 'utf8');
+
+  /* The pill. Three names in a 310px bar is most of a phone's width spent
+     saying what the shapes already say. */
+  check('the pill is three icons, each with its name kept for the switch',
+    $$('#nav .tab .t-ic').length === 3 && $$('#nav .tab .t-l').length === 3 &&
+    $$('#nav .tab').every(t => t.getAttribute('aria-label')),
+    String($$('#nav .tab .t-ic').length));
+  check('the words are off until the switch turns them on',
+    d.documentElement.dataset.navLabels === 'off' &&
+    /\[data-nav-labels="on"\] \.t-l\{display:block\}/.test(askCss14));
+  w.Store.set('navLabels', true); w.ASK.applyLook();
+  check('… and the switch is one attribute on the root',
+    d.documentElement.dataset.navLabels === 'on');
+  w.Store.set('navLabels', false); w.ASK.applyLook();
+
+  /* The count replaces the glyph rather than sitting on top of it. */
+  w.Store.clearQueue();
+  w.ASK.render();
+  const qTab = () => $('#nav .tab[data-scr="queue"]');
+  check('an empty queue keeps its glyph and says nothing',
+    !qTab().classList.contains('counting') && $('#t-n').hidden,
+    qTab().className);
+  w.Store.add({ title: 'a filter test', type: 'fix', project: 'hub', tab: 'other', prio: 4, notes: '' });
+  w.ASK.render();
+  check('… and one waiting turns the glyph into the number',
+    qTab().classList.contains('counting') && $('#t-n').textContent === '1' && !$('#t-n').hidden,
+    qTab().className + ' / ' + $('#t-n').textContent);
+  check('… which is a swap, not a badge over it',
+    /\.tab\.counting \.t-ic\{display:none\}/.test(askCss14) &&
+    /\.tab\.counting \.t-n\{display:block\}/.test(askCss14));
+
+  /* `tab:` is the area inside ROOT. Anything else is one app, and thirteen
+     chips of ROOT's vocabulary under a hub request is a question with no right
+     answer. */
+  w.ASK.go('write');
+  click(chip('#a-project', 'root'));
+  check('a ROOT request is asked which area of it', !$('#a-tab-f').hidden);
+  click(chip('#a-project', 'hub'));
+  check('… and anything else is not asked at all', $('#a-tab-f').hidden);
+  $('#a-title').value = 'no area on this one';
+  click($('#a-add'));
+  const filed = w.Store.queue()[w.Store.queue().length - 1];
+  check('… and it files under the tab a missing one already reads as',
+    filed.project === 'hub' && filed.tab === 'other', JSON.stringify(filed));
+
+  /* The filter. One of them, read by both lists — "everything about hub" is
+     one question, and two answers to it on two screens is a bug. */
+  w.Store.clearQueue();
+  ['root', 'hub', 'ask'].forEach((p, i) => w.Store.add({
+    title: 'request for ' + p, type: i === 0 ? 'fix' : 'feature',
+    project: p, tab: 'other', prio: 4, notes: '' }));
+  w.ASK.go('queue');
+  const cards = () => $$('#q-list-wrap .card').length;
+  check('the queue shows everything with no filter on', cards() === 3, String(cards()));
+  check('… and the bar offers only the projects actually in the list',
+    $$('#q-list-wrap [data-f="project"]').length === 4,
+    $$('#q-list-wrap [data-f="project"]').map(b => b.dataset.v).join(','));
+  click($$('#q-list-wrap [data-f="project"]').find(b => b.dataset.v === 'hub'));
+  check('picking a project narrows the list to it',
+    cards() === 1 && /hub/.test($('#q-list-wrap .card .c-title').textContent), String(cards()));
+  check('… and says so, because a list hiding rows quietly is a trap',
+    !!$('#q-list-wrap .f-count') && /1 of 3/.test($('#q-list-wrap .f-count').textContent),
+    $('#q-list-wrap .f-count') ? $('#q-list-wrap .f-count').textContent : 'no count');
+  check('… while the send button still counts the whole queue, which is what it sends',
+    /send 3 to todoist/.test($('#q-send').textContent), $('#q-send').textContent);
+  click($$('#q-list-wrap [data-f="project"]').find(b => b.dataset.v === 'hub'));
+  check('tapping the live one again lifts it', cards() === 3 && !w.ASK.filter().project,
+    JSON.stringify(w.ASK.filter()));
+
+  w.ASK.setFilter({ type: 'feature' });
+  check('a kind narrows it the same way', cards() === 2, String(cards()));
+  w.ASK.setFilter({ type: 'change' });
+  check('… and an untyped request reads as a change here too, the way the protocol reads it',
+    (() => { w.Store.add({ title: 'untyped one', type: '', project: 'root', tab: 'other', prio: 4, notes: '' });
+             w.ASK.render(); return cards() === 1; })(), String(cards()));
+  w.ASK.setFilter({ type: '', q: 'untyped' });
+  check('the search reads the title', cards() === 1, String(cards()));
+  w.ASK.setFilter({ project: '', type: '', q: '' });
+
+  /* And the same filter reaches the sent list. */
+  w.Store.clearQueue();
+  w.Store.clearSent();
+  /* markSent takes the request, its task id and its url, and does not empty the
+     queue — sending removes each one as it lands, which is what stops a retry
+     filing the same request twice. Both halves are done by hand here. */
+  [['sent for hub', 'hub'], ['sent for root', 'root']].forEach(([title, project], i) => {
+    w.Store.add({ title, type: 'fix', project, tab: 'other', prio: 4, notes: '' });
+    const r = w.Store.queue()[0];
+    w.Store.markSent(r, 'task' + i, 'https://todoist.com/showTask?id=' + i);
+    w.Store.remove(r.id);
+  });
+  w.ASK.go('sent');
+  check('the sent list is filtered by the same one', $$('#h-list-wrap .card').length === 2,
+    String($$('#h-list-wrap .card').length));
+  w.ASK.setFilter({ project: 'hub' });
+  check('… so narrowing once narrows both', $$('#h-list-wrap .card').length === 1,
+    String($$('#h-list-wrap .card').length));
+  w.ASK.setFilter({ project: '', type: '', q: '' });
+  w.Store.clearSent();
+
+  /* The shape dials. Three of them are custom properties and change everything,
+     because everything here is a block. */
+  w.Store.set('radius', 0);
+  w.Store.set('density', 1.2);
+  w.Store.set('border', 0);
+  w.ASK.applyLook();
+  const st = d.documentElement.style;
+  check('the three that reshape everything are properties on the page, not rules',
+    st.getPropertyValue('--r-base') === '0px' && st.getPropertyValue('--dens') === '1.2' &&
+    st.getPropertyValue('--bw') === '0px',
+    st.getPropertyValue('--r-base') + '/' + st.getPropertyValue('--dens'));
+  w.Store.set('cards', 'line');
+  w.Store.set('chips', 'pill');
+  w.Store.set('titleFont', 'ui');
+  w.Store.set('caps', false);
+  w.ASK.applyLook();
+  check('the four that are a choice are attributes on the root',
+    d.documentElement.dataset.cards === 'line' && d.documentElement.dataset.chips === 'pill' &&
+    d.documentElement.dataset.titleFont === 'ui' && d.documentElement.dataset.caps === 'off',
+    JSON.stringify(d.documentElement.dataset));
+  check('… and each one has a rule that reads it',
+    /\[data-cards="line"\] \.card\{/.test(askCss14) &&
+    /\[data-chips="pill"\] \.chip,/.test(askCss14) &&
+    /\[data-title-font="ui"\] \.c-title\{/.test(askCss14) &&
+    /\[data-caps="off"\]\{--caps:none\}/.test(askCss14));
+  /* An install that has never heard of these keys is exactly what an upgrade
+     is, so the reader has to hold a store with none of them in it. */
+  ['density','radius','border','cards','chips','titleFont','caps','navLabels','motion']
+    .forEach(k => w.Store.set(k, undefined));
+  w.ASK.applyLook();
+  check('a store that has never heard of a dial still lands on the default',
+    st.getPropertyValue('--r-base') === '12px' && d.documentElement.dataset.cards === 'outline',
+    st.getPropertyValue('--r-base') + '/' + d.documentElement.dataset.cards);
+  ['density','radius','border','cards','chips','titleFont','caps','navLabels','motion']
+    .forEach(k => w.Store.set(k, w.Store.DEFAULTS[k]));
+  w.ASK.applyLook();
+
+  w.Store.clearQueue();
+  w.ASK.go('write');
+  w.ASK.render();
+}
+
+
+/* 1.4 — arriving with the request already in the address. This is what the
+   Stream Deck key does now: it stopped talking to Todoist itself and opens ASK
+   prefilled instead, so there is one implementation of the intake contract
+   rather than two. */
+{
+  const link = q => { w.history.replaceState(null, '', '/ask/index.html?' + q); return w.ASK.fromLink(); };
+
+  w.ASK.go('write');
+  click($('#a-clear'));
+  check('a link fills the form in, field for field',
+    link('title=the+pill+drifts&type=fix&project=root&tab=do&prio=2&notes=on+the+queue+screen') &&
+    $('#a-title').value === 'the pill drifts' && $('#a-notes').value === 'on the queue screen',
+    $('#a-title').value);
+  click($('#a-add'));
+  const linked = w.Store.queue()[w.Store.queue().length - 1];
+  check('… and what it queues is an ordinary request',
+    linked.title === 'the pill drifts' && linked.type === 'fix' && linked.project === 'root' &&
+    linked.tab === 'do' && linked.prio === 2 && linked.notes === 'on the queue screen',
+    JSON.stringify(linked));
+
+  /* The one thing this must never do: file the same request twice. The query
+     is taken off the address, so a reload comes back to the form and not to
+     the link that opened it. */
+  check('the link is cleared off the address, so a reload cannot refile it',
+    !w.location.search, w.location.search);
+
+  /* A project the settings list has never heard of is a real request — a new
+     repo — so it becomes `other` with the name typed in rather than silently
+     becoming root. */
+  click($('#a-clear'));
+  link('title=a+new+repo&project=brand-new');
+  check('a project the list has never heard of arrives as "other", named',
+    $('#a-project-other').value === 'brand-new' &&
+    !!$$('#a-project .chip').find(c => c.dataset.val === 'other' && c.classList.contains('on')),
+    $('#a-project-other').value);
+  click($('#a-add'));
+  check('… and files under that name',
+    w.Store.queue()[w.Store.queue().length - 1].project === 'brand-new',
+    w.Store.queue()[w.Store.queue().length - 1].project);
+
+  /* No type is a real answer, the one the protocol reads as a change — so an
+     absent type is not an error and nothing is invented for it. */
+  click($('#a-clear'));
+  link('title=untyped+from+a+key');
+  click($('#a-add'));
+  check('a link with no type files without one, which the protocol reads as a change',
+    w.Store.queue()[w.Store.queue().length - 1].type === '',
+    JSON.stringify(w.Store.queue()[w.Store.queue().length - 1]));
+
+  /* Nonsense in the address is ignored rather than refused: the link is a
+     convenience and the form is still the form. */
+  click($('#a-clear'));
+  link('type=nonsense&prio=99&tab=notatab&title=still+fine');
+  check('values the app does not have are dropped, and the rest still lands',
+    $('#a-title').value === 'still fine' && !$$('#a-type .chip.on').length &&
+    !!$$('#a-prio .chip.on').find(c => c.dataset.val === '4'),
+    $$('#a-type .chip.on').length + ' type chips lit');
+
+  check('an address with nothing in it is not a link at all', link('') === false);
+  click($('#a-clear'));
+  w.Store.clearQueue();
+  w.ASK.render();
 }
 
 check('still no errors after all of that', errors.length === 0, errors.slice(0, 3).join(' | '));
