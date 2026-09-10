@@ -320,14 +320,35 @@ check('the rebind rows are drawn from the same list the keys come from',
 
   $('#q-in').value = '';
   key('Enter', $('#q-in'));
-  check('answering the last one files the request and closes the flow',
-    w.Store.queue().length === before + 1 && w.ASK.quickStep() === -1,
-    before + ' → ' + w.Store.queue().length);
+  check('answering the last one files the request and asks the first again',
+    w.Store.queue().length === before + 1 && w.ASK.quickStep() === 0,
+    before + ' → ' + w.Store.queue().length + ', step ' + w.ASK.quickStep());
   const made = w.Store.queue()[w.Store.queue().length - 1];
   check('… and what it filed is a normal request, from the same form',
     made.title === 'asked one thing at a time' && made.type === 'fix' &&
     !!made.project && !!made.tab && !!made.prio,
     JSON.stringify(made));
+  check('… on an empty field, so the next one is typed straight in',
+    !!$('#q-in') && $('#q-in').value === '' && $('#a-title').value === '',
+    $('#q-in') ? JSON.stringify($('#q-in').value) : 'no field');
+  check('… and the hint says how many landed and how to leave',
+    /1 queued in a row/.test($('#q-hint').textContent) &&
+    /escape leaves/i.test($('#q-hint').textContent), $('#q-hint').textContent);
+
+  /* the whole point: a second one without touching the button again */
+  $('#q-in').value = 'and the one behind it';
+  key('Enter', $('#q-in'));
+  key('1'); key('1'); key('1'); key('1');       // kind, project, area, priority
+  $('#q-in').value = '';
+  key('Enter', $('#q-in'));
+  check('a run files as many as it is answered, never reopened in between',
+    w.Store.queue().length === before + 2 && w.ASK.quickDone() === 2 &&
+    w.Store.queue()[w.Store.queue().length - 1].title === 'and the one behind it',
+    before + ' → ' + w.Store.queue().length);
+
+  key('Escape');
+  check('Escape on the first question is the way out of the run',
+    w.ASK.quickStep() === -1, String(w.ASK.quickStep()));
 
   /* "other" has nowhere to type a name in the flow, so it hands over rather
      than inventing a step */

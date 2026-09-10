@@ -182,6 +182,18 @@ takes Enter and lands with its field already focused. There is no confirm button
 anywhere in the flow. Escape steps *back* one question rather than out, because
 losing four answers to one mistyped key is how a fast path stops getting used.
 
+**It is a mode, not a one-shot.** Filing does not close it: the note step files
+the request, clears the form and comes straight back to the first question, so a
+run of requests is a run of answers with nothing in between them. The first
+question is the only place it can be left — Escape there is the way out, the
+same key that steps back on every other question — and it says so, alongside how
+many the run has queued so far. That count is also the only sign on screen that
+the last one landed, since the queue behind the overlay is not being read.
+
+A filing the form rejects — an empty request line — keeps the question rather
+than dropping out of the flow; the toast has already said what is missing, and
+the field it would send you to is behind the overlay.
+
 It is not a second form. Every step writes the same `draft` the long form uses
 and files through the same `readForm()` / `Store.add()`, so there is one
 definition of a request and the two cannot drift.
@@ -193,6 +205,14 @@ cursor in the long form's project field.
 ---
 
 ## Changelog
+
+### 1.2.1 — 2026-09-10 — quick mode stays open
+
+- Filing no longer closes the flow: it clears and asks the first question again,
+  so several requests are one run. Escape on that first question leaves.
+- The first question carries the run's count and the way out.
+- A rejected filing keeps the question instead of dropping out of the flow.
+- 67 checks (4 added).
 
 ### 1.2.0 — 2026-09-09 — one field at a time
 

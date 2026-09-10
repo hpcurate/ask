@@ -403,12 +403,13 @@
   ];
   let qAt = -1;          // which step, or -1 when the flow is closed
   let qPick = 0;         // the highlighted chip on a chips step
+  let qDone = 0;         // how many this run has filed, for the first hint
 
   const qOpen = () => qAt >= 0;
 
   function quickStart() {
     resetForm();
-    qAt = 0; qPick = 0;
+    qAt = 0; qPick = 0; qDone = 0;
     $('#q-back').classList.add('on');
     $('#q-wrap').classList.add('on');
     drawQuick();
@@ -424,7 +425,7 @@
     if (!st) return;
     $('#q-dots').innerHTML = QSTEPS.map((_, i) =>
       `<i class="${i < qAt ? 'done' : i === qAt ? 'on' : ''}"></i>`).join('');
-    $('#q-hint').textContent = st.hint || 'a key answers it — it moves on by itself';
+    $('#q-hint').textContent = qHint(st);
 
     if (st.kind === 'text') {
       const val = st.k === 'title' ? $('#a-title').value : $('#a-notes').value;
@@ -447,7 +448,16 @@
     $$('#q-step .q-opt').forEach(b => b.onclick = () => quickAnswer(b.dataset.q));
   }
 
-  /* One answer, then straight on. The last step files it. */
+  /* The first question is where the flow can be left, and after a filing it is
+     also the only sign on screen that the last one landed, so it carries both
+     the count and the exit. */
+  function qHint(st) {
+    const base = st.hint || 'a key answers it — it moves on by itself';
+    if (qAt !== 0) return base;
+    return `${qDone ? qDone + ' queued in a row · ' : ''}${base} · Escape leaves`;
+  }
+
+  /* One answer, then straight on. The last step files it and asks again. */
   function quickAnswer(v) {
     const st = QSTEPS[qAt];
     if (!st) return;
@@ -473,14 +483,23 @@
     drawQuick();
   }
 
+  /* Filing does not close the flow. Quick mode is a *mode*: it files, clears
+     and comes straight back to the first question, so a run of requests is a
+     run of answers with nothing in between them. Escape on that first question
+     is the way out — the same key that steps back everywhere else in here. */
   function quickFile() {
     const req = readForm();
-    if (!req) { quickClose(); return; }        // readForm says what is missing
+    /* A missing title cannot be fixed behind the overlay, so a rejected filing
+       keeps the question rather than dropping out of the flow — readForm's
+       toast has already said what is missing. */
+    if (!req) { qAt = 0; qPick = 0; drawQuick(); return; }
     Store.add(req);
-    quickClose();
     resetForm();
     render();
-    toast(req.type ? 'queued' : 'queued — no type, so it reads as a change');
+    qDone++;
+    qAt = 0; qPick = 0;
+    drawQuick();
+    toast(req.type ? 'queued — next one' : 'queued — no type, so it reads as a change');
   }
 
   function quickBack() {
@@ -727,7 +746,7 @@
 
   /* the smoke drives these; nothing in the page calls them from outside */
   window.ASK = { go, moveSel, clearSel, actOnSel, selected: () => sel, renderKeys,
-                 quickStart, quickClose, quickKey, quickStep: () => qAt, paintQuick };
+                 quickStart, quickClose, quickKey, quickStep: () => qAt, quickDone: () => qDone, paintQuick };
 
   document.documentElement.setAttribute('data-theme', Store.get('theme') || 'void');
   renderLists();
